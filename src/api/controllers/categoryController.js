@@ -28,7 +28,7 @@ exports.createCategory = catchAsync(async (req, res, next) => {
   const { categoryName, categoryEngName, description } = req.body;
 
   // Create slug for category
-  const slug = slugify(`${categoryName}`, {
+  const slug = slugify(categoryName, {
     locale: "vi",
     trim: true,
     lower: true,

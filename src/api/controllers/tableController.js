@@ -1,6 +1,7 @@
 const Table = require("../models/TableModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
+const checkRequiredFields = require("../utils/checkRequiredFields");
 const QRCode = require("qrcode");
 const path = require("path");
 
@@ -35,6 +36,7 @@ exports.checkStatusTable = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
+    tableStatus: table.status,
     message: `Table is opened`,
   });
 });
@@ -62,28 +64,26 @@ exports.getTables = catchAsync(async (req, res, next) => {
 });
 
 exports.createTable = catchAsync(async (req, res, next) => {
-  const { table_number } = req.body;
+  checkRequiredFields(["tableNumber"], req.body);
+
+  const { tableNumber } = req.body;
 
   // Check if table_number is a positive number
-  if (!Number.isInteger(table_number) || table_number <= 0)
+  if (!Number.isInteger(tableNumber) || tableNumber <= 0)
     return next(new AppError("Table number must be a positive integer", 400));
 
   // Check if the table already exists
-  let existingTable = await Table.findOne({ table_number });
+  let existingTable = await Table.findOne({ tableNumber });
   if (existingTable && existingTable.isDelete === false) {
     return next(new AppError("Table has already existed", 400));
   } else if (existingTable && existingTable.isDelete === true) {
-    existingTable = await Table.findByIdAndUpdate(
-      existingTable._id,
-      {
-        status: "lock",
-        isDelete: false,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    req.body.status = "lock";
+    req.body.isDelete = false;
+
+    existingTable = await Table.findByIdAndUpdate(existingTable._id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
     return res.status(201).json({
       status: "success",
@@ -92,7 +92,7 @@ exports.createTable = catchAsync(async (req, res, next) => {
   }
 
   // Create table
-  const newTable = await Table.create({ table_number });
+  const newTable = await Table.create({ tableNumber });
 
   res.status(201).json({
     status: "success",
@@ -103,6 +103,7 @@ exports.createTable = catchAsync(async (req, res, next) => {
 exports.updateTable = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
   const { table_number } = req.body;
+  req.body.status = "lock";
 
   // Check if table_number is a positive number
   if (!Number.isInteger(table_number) || table_number <= 0)
@@ -124,15 +125,11 @@ exports.updateTable = catchAsync(async (req, res, next) => {
     return next(new AppError("This table number has already existed", 400));
 
   // Update table
-  const updateTable = await Table.findByIdAndUpdate(
-    tableId,
-    { table_number: table_number, status: "lock" },
-    {
-      new: true,
-      runValidators: true,
-      select: "_id table_number status isDelete",
-    }
-  );
+  const updateTable = await Table.findByIdAndUpdate(tableId, req.body, {
+    new: true,
+    runValidators: true,
+    select: "_id table_number status isDelete",
+  });
 
   res.status(200).json({
     status: "success",
