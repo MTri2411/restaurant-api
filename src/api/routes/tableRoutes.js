@@ -1,25 +1,31 @@
 const express = require("express");
+const orderRouter = require("./orderRoutes");
 const tableController = require("../controllers/tableController");
-const categoryRoutes = require("../routes/categoryRoutes");
+const authController = require("../controllers/authController");
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
+
+// redirect to order router (mergeParams)
+router.use("/:tableId/orders/", orderRouter);
+
+router.use(authController.protect);
 
 router
   .route("/")
-  .get(tableController.getTables)
-  .post(tableController.createTable);
+  .get(authController.restrictTo("admin", "staff"), tableController.getTables)
+  .post(authController.restrictTo("admin"), tableController.createTable);
 
 router
   .route("/:tableId")
-  .get(tableController.checkStatusTable)
-  .post(tableController.createQRcode)
-  .patch(tableController.updateTable)
-  .delete(tableController.softDeleteTable);
+  .get(authController.restrictTo("client"), tableController.checkStatusTable)
+  .post(authController.restrictTo("admin"), tableController.createQRcode)
+  .patch(authController.restrictTo("admin"), tableController.updateTable)
+  .delete(authController.restrictTo("admin"), tableController.softDeleteTable);
 
-router.route("/hd/:tableId").delete(tableController.hardDeleteTable);
+router.route("/hd/:tableId").delete(authController.restrictTo("admin"), tableController.hardDeleteTable);
 
 router
   .route("/update-status/:tableId")
-  .patch(tableController.updateStatusTable);
+  .patch(authController.restrictTo("staff"), tableController.updateStatusTable);
 
 module.exports = router;

@@ -13,9 +13,11 @@ const cookieParser = require("cookie-parser");
 //: ******* ROUTE HANDLERS *******
 const AppError = require("./api/utils/AppError");
 const globalErrorHandler = require("./api/controllers/errorController");
+const userRouter = require("./api/routes/userRoutes");
 const tableRouter = require("./api/routes/tableRoutes");
 const categoryRouter = require("./api/routes/categoryRoutes");
 const menuItemRouter = require("./api/routes/menuItemRoutes");
+const orderRouter = require("./api/routes/orderRoutes");
 
 //: ******* START EXPRESS APP *******
 const app = express();
@@ -60,9 +62,11 @@ app.use(compression());
 //: >>>>>>> END GLOBAL MIDDLEWARE >>>>>>>
 
 //: ******* ROUTES *******
+app.use("/v1/users", userRouter);
 app.use("/v1/tables", tableRouter);
 app.use("/v1/categories", categoryRouter);
-app.use("/v1/menu-items", menuItemRouter)
+app.use("/v1/menu-items", menuItemRouter);
+app.use("/v1/orders", orderRouter);
 
 //: ******* ERROR HANDLING *******
 // 1) Handle unhandled routes

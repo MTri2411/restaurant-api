@@ -4,6 +4,7 @@ const tableSchema = new mongoose.Schema(
   {
     tableNumber: {
       type: Number,
+      unique: true,
       required: [true, "A table must have a number!"],
     },
 
@@ -23,5 +24,5 @@ const tableSchema = new mongoose.Schema(
   }
 );
 
-const Table = mongoose.model("table", tableSchema);
+const Table = mongoose.model("tables", tableSchema);
 module.exports = Table;
