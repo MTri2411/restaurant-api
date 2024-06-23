@@ -4,12 +4,12 @@ dotenv.config({ path: "./.env" });
 
 const app = require("./src/app");
 
-// const DB = process.env.DATABASE.replace(
-//   "<PASSWORD>",
-//   process.env.DATABASE_PASSWORD
-// );
+const DB = process.env.DATABASE.replace(
+  "<PASSWORD>",
+  process.env.DATABASE_PASSWORD
+);
 
-const DB = "mongodb://localhost:27017/restaurantDB";
+// const DB = "mongodb://localhost:27017/restaurantDB";
 
 mongoose.connect(DB).then(() => console.log("DB connection successful!"));
 
