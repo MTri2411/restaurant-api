@@ -70,8 +70,22 @@ const menuItemSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    // toJSON: {
+    //   virtuals: true,
+    //   transform: function (doc, ret) {
+    //     delete ret.id;
+    //   },
+    // },
+    // toObject: { virtuals: true },
   }
 );
+
+// // Virtual category
+// menuItemSchema.virtual("category", {
+//   ref: "categories",
+//   localField: "category_id",
+//   foreignField: "_id",
+// });
 
 const MenuItem = mongoose.model("menuItems", menuItemSchema);
 module.exports = MenuItem;

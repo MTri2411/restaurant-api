@@ -1,4 +1,5 @@
 const MenuItem = require("../models/MenuItemModel");
+const Category = require("../models/CategoryModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -12,12 +13,20 @@ exports.getAllMenuItem = catchAsync(async (req, res, next) => {
   };
 
   // Get menu items
-  const menuItems = await MenuItem.find(
+  let menuItems = await MenuItem.find(
     {
       isDelete: false,
     },
     projection
-  );
+  ).lean();
+
+  for (const menuItem of menuItems) {
+    const category = await Category.findOne({ _id: menuItem.category_id });
+
+    if (category) {
+      menuItem.category = category.name;
+    }
+  }
 
   res.status(200).json({
     success: "success",
