@@ -5,11 +5,14 @@ const { sendMail } = require("../services/sendMailServices");
 const { signToken } = require("../services/jwtServices");
 
 exports.getAllUsers = catchAsync(async (req, res, next) => {
-  const users = await User.find();
-  delete users._doc.password;
+  let users = await User.find();
+  users = users.map((user) => {
+    delete user._doc.password;
+    return user;
+  });
   res.status(200).json({
     status: "success",
-    results: users.length,
+    message: "Get all users successfully!",
     data: {
       users,
     },
