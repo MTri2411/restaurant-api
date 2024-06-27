@@ -22,10 +22,15 @@ router
   .patch(authController.restrictTo("admin"), tableController.updateTable)
   .delete(authController.restrictTo("admin"), tableController.softDeleteTable);
 
-router.route("/hd/:tableId").delete(authController.restrictTo("admin"), tableController.hardDeleteTable);
+router
+  .route("/hd/:tableId")
+  .delete(authController.restrictTo("admin"), tableController.hardDeleteTable);
 
 router
   .route("/update-status/:tableId")
-  .patch(authController.restrictTo("staff"), tableController.updateStatusTable);
+  .patch(
+    authController.restrictTo("admin", "staff"),
+    tableController.updateStatusTable
+  );
 
 module.exports = router;
