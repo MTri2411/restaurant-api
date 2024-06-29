@@ -6,6 +6,18 @@ const router = express.Router({ mergeParams: true });
 
 router.use(authController.protect);
 
-router.route("/").post(orderController.createOrder);
+router
+  .route("/")
+  .post(
+    authController.restrictTo("staff", "client"),
+    orderController.createOrder
+  );
+
+router
+  .route("/:itemId")
+  .delete(
+    authController.restrictTo("staff", "client"),
+    orderController.deleteOrderItem
+  );
 
 module.exports = router;
