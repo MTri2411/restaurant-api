@@ -14,6 +14,10 @@ const tableSchema = new mongoose.Schema(
       default: "lock",
     },
 
+    qrCode: {
+      type: String,
+    },
+
     isDelete: {
       type: Boolean,
       default: false,

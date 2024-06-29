@@ -7,6 +7,7 @@ const slugify = require("slugify");
 
 exports.getAllMenuItem = catchAsync(async (req, res, next) => {
   const projection = {
+    idDelete: true,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
@@ -37,6 +38,7 @@ exports.getAllMenuItem = catchAsync(async (req, res, next) => {
 
 exports.getMenuItemsByCategoryId = catchAsync(async (req, res, next) => {
   const projection = {
+    isDelete: true,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
@@ -108,47 +110,6 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
       upsert: true,
     }
   );
-
-  // // Check already menu item by slug
-  // let existingMenuItem = await MenuItem.findOne({
-  //   slug: slug,
-  // });
-
-  // req.body.slug = slug;
-  // req.body.isDelete = false;
-  // req.body.category_id = categoryId;
-
-  // if (existingMenuItem && existingMenuItem.isDelete === false) {
-  //   return next(new AppError("You already have this menu item", 400));
-  // }
-
-  // if (existingMenuItem && existingMenuItem.isDelete === true) {
-  //   existingMenuItem = await MenuItem.findByIdAndUpdate(
-  //     existingMenuItem._id,
-  //     req.body,
-  //     {
-  //       new: true,
-  //       runValidators: true,
-  //     }
-  //   );
-
-  //   return res.status(201).json({
-  //     status: "success",
-  //     data: existingMenuItem,
-  //   });
-  // }
-
-  // // Save new menu item in database
-  // const newMenuItem = await MenuItem.create({
-  //   name,
-  //   engName,
-  //   description,
-  //   price,
-  //   image_url,
-  //   rating,
-  //   options,
-  //   slug,
-  // });
 
   // Respone
   res.status(201).json({
