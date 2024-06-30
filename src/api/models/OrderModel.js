@@ -21,8 +21,6 @@ const orderSchema = new mongoose.Schema(
 
     items: [
       {
-        _id: false,
-
         menuItemId: {
           type: mongoose.Schema.ObjectId,
           ref: "menuItems",
@@ -31,7 +29,6 @@ const orderSchema = new mongoose.Schema(
         quantity: {
           type: Number,
         },
-
         note: {
           type: String,
           default: "",
@@ -40,6 +37,17 @@ const orderSchema = new mongoose.Schema(
         options: {
           type: String,
           default: "",
+        },
+
+        status: {
+          type: String,
+          enum: ["loading", "finished"],
+          default: "loading",
+        },
+
+        createdAt: {
+          type: Date,
+          default: Date.now(),
         },
       },
     ],
