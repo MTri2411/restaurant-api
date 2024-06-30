@@ -14,11 +14,6 @@ const orderSchema = new mongoose.Schema(
       required: [true, "table id is required!"],
     },
 
-    status: {
-      type: String,
-      default: "unpaid",
-    },
-
     items: [
       {
         menuItemId: {
@@ -54,11 +49,25 @@ const orderSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        delete ret.id;
+      },
+    },
+    toObject: { virtuals: true },
   }
 );
 
 // Compound unique index
 orderSchema.index({ userId: 1, tableId: 1 }, { unique: true });
+
+// Virtual
+orderSchema.virtual("items.menuItem", {
+  ref: "menuItems",
+  localField: "items.menuItemId",
+  foreignField: "_id",
+});
 
 const Order = mongoose.model("orders", orderSchema);
 module.exports = Order;

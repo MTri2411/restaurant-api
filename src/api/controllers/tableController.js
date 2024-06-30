@@ -24,22 +24,27 @@ exports.createQRcode = catchAsync(async (req, res, next) => {
 });
 
 exports.checkStatusTable = catchAsync(async (req, res, next) => {
+  const projection = {
+    isDelete: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    __v: 0,
+  };
+
   const { tableId } = req.params;
 
   // Check status table
-  const table = await Table.findById(tableId);
-  if (table.status === "lock")
-    return next(new AppError("Table is locked", 400));
+  const table = await Table.findById(tableId, projection);
 
   res.status(200).json({
     status: "success",
-    tableStatus: table.status,
-    message: `Table is opened`,
+    data: table,
   });
 });
 
 exports.getTables = catchAsync(async (req, res, next) => {
   const projection = {
+    isDelete: 0,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
@@ -74,7 +79,6 @@ exports.createTable = catchAsync(async (req, res, next) => {
       isDelete: true,
     },
     {
-      tableNumber,
       status: "lock",
       isDelete: false,
     },
@@ -82,46 +86,17 @@ exports.createTable = catchAsync(async (req, res, next) => {
       new: true,
       runValidators: true,
       upsert: true,
+      select: "_id tableNumber status",
     }
   );
+
+  upsertTable.qrCode = await QRCode.toDataURL(upsertTable._id.toString());
+  upsertTable.save();
 
   return res.status(201).json({
     status: "sucess",
     data: upsertTable,
   });
-
-  // // Check if the table already exists
-  // let existingTable = await Table.findOne({ tableNumber });
-  // if (existingTable && existingTable.isDelete === false)
-  //   return next(new AppError("Table has already existed", 400));
-
-  // if (existingTable && existingTable.isDelete === true) {
-  //   existingTable = await Table.findByIdAndUpdate(
-  //     existingTable._id,
-  //     {
-  //       tableNumber,
-  //       status: "lock",
-  //       isDelete: false,
-  //     },
-  //     {
-  //       new: true,
-  //       runValidators: true,
-  //     }
-  //   );
-
-  //   return res.status(201).json({
-  //     status: "success",
-  //     data: existingTable,
-  //   });
-  // }
-
-  // // Create table
-  // const newTable = await Table.create({ tableNumber });
-
-  // res.status(201).json({
-  //   status: "success",
-  //   data: newTable,
-  // });
 });
 
 exports.updateTable = catchAsync(async (req, res, next) => {
@@ -131,21 +106,11 @@ exports.updateTable = catchAsync(async (req, res, next) => {
   const { tableNumber } = req.body;
 
   // Check if tableNumber is a positive number
-  if (!Number.isInteger(tableNumber) || tableNumber <= 0)
+  if (!Number.isInteger(tableNumber) || tableNumber <= 0) {
     return next(new AppError("Table number must be a positive integer", 400));
+  }
 
-  // // Find table in database
-  // const table = await Table.findById(tableId);
-  // if (!table) return next(new AppError("No table found with that ID", 404));
-
-  // // Check table already exists
-  // const existingTable = await Table.find({
-  //   tableNumber,
-  //   _id: { $ne: table._id }, // Find all tables except itself
-  // });
-
-  // if (existingTable.length !== 0)
-  //   return next(new AppError("This table number has already existed", 400));
+  await Table.findOneAndDelete({ tableNumber, isDelete: true });
 
   req.body.status = "lock";
 
@@ -153,7 +118,7 @@ exports.updateTable = catchAsync(async (req, res, next) => {
   const updateTable = await Table.findByIdAndUpdate(tableId, req.body, {
     new: true,
     runValidators: true,
-    select: "_id tableNumber status isDelete",
+    select: "_id tableNumber status",
   });
 
   if (!updateTable)
@@ -174,14 +139,6 @@ exports.updateStatusTable = catchAsync(async (req, res, next) => {
   // Check required fields
   if (!status) return next(new AppError("Status is required", 400));
 
-  // // Check valid status
-  // if (status !== "open" && status !== "lock")
-  //   return next(new AppError("Invalid status value", 400));
-
-  // // Find table in database
-  // const table = await Table.findById(tableId);
-  // if (!table) return next(new AppError("No table found with this ID", 404));
-
   // Update table
   const updateStatusTable = await Table.findByIdAndUpdate(
     tableId,
@@ -189,7 +146,7 @@ exports.updateStatusTable = catchAsync(async (req, res, next) => {
     {
       new: true,
       runValidators: true,
-      select: "_id tableNumber status isDelete",
+      select: "_id tableNumber status",
     }
   );
 

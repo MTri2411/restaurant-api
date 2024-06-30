@@ -55,6 +55,7 @@ exports.createCategory = catchAsync(async (req, res, next) => {
       new: true,
       runValidators: true,
       upsert: true,
+      select: "_id name engName description slug",
     }
   );
 
@@ -62,50 +63,6 @@ exports.createCategory = catchAsync(async (req, res, next) => {
     status: "sucess",
     data: upsertCategory,
   });
-
-  // // Check already category by slug
-  // let existingCategory = await Category.findOne({
-  //   slug: slug,
-  // });
-
-  // if (existingCategory && existingCategory.isDelete === false)
-  //   return next(new AppError("You already have this category", 400));
-
-  // if (existingCategory && existingCategory.isDelete === true) {
-  //   existingCategory = await Category.findByIdAndUpdate(
-  //     existingCategory._id,
-  //     {
-  //       name,
-  //       engName: engName || "",
-  //       description: description || "",
-  //       slug,
-  //       isDelete: false,
-  //     },
-  //     {
-  //       new: true,
-  //       runValidators: true,
-  //     }
-  //   );
-
-  //   return res.status(201).json({
-  //     status: "success",
-  //     data: existingCategory,
-  //   });
-  // }
-
-  // Save new category in database
-  // const newCategory = await Category.create({
-  //   name,
-  //   engName,
-  //   description,
-  //   slug,
-  // });
-
-  // // Respone
-  // res.status(201).json({
-  //   status: "success",
-  //   data: newCategory,
-  // });
 });
 
 exports.updateCategory = catchAsync(async (req, res, next) => {
@@ -114,10 +71,7 @@ exports.updateCategory = catchAsync(async (req, res, next) => {
   const { categoryId } = req.params;
   const { name } = req.body;
 
-  // // Find category in database
-  // const category = await Category.findById(categoryId);
-  // if (!category)
-  //   return next(new AppError("No category found with that ID", 404));
+  await Category.findOneAndDelete({ name, isDelete: true });
 
   // Create slug for category
   let slug = null;
@@ -131,15 +85,6 @@ exports.updateCategory = catchAsync(async (req, res, next) => {
     req.body.slug = slug;
   }
 
-  // // Check already category name by slug
-  // const existingCategory = await Category.find({
-  //   slug: slug,
-  //   _id: { $ne: category._id }, // Find all categories except itself
-  // });
-
-  // if (existingCategory.length !== 0)
-  //   return next(new AppError("You already have this category", 400));
-
   // Update new category in database
   const updateCategory = await Category.findByIdAndUpdate(
     categoryId,
@@ -147,7 +92,7 @@ exports.updateCategory = catchAsync(async (req, res, next) => {
     {
       new: true,
       runValidators: true,
-      select: "_id name engName description slug isDelete",
+      select: "_id name engName description slug",
     }
   );
 
