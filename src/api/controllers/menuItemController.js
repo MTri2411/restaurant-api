@@ -7,7 +7,7 @@ const slugify = require("slugify");
 
 exports.getAllMenuItem = catchAsync(async (req, res, next) => {
   const projection = {
-    idDelete: true,
+    idDelete: 0,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
@@ -38,7 +38,7 @@ exports.getAllMenuItem = catchAsync(async (req, res, next) => {
 
 exports.getMenuItemsByCategoryId = catchAsync(async (req, res, next) => {
   const projection = {
-    isDelete: true,
+    isDelete: 0,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
