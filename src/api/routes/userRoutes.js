@@ -18,24 +18,38 @@ router
   );
 
 router
-  .route("/delete-user")
-  .delete(
+  .route("/unverified")
+  .get(
     authController.protect,
     authController.restrictTo("admin"),
-    userController.deleteUser
+    userController.getUnverifiedUsers
   );
 
 router.route("/register").post(userController.registerUser);
 router.route("/verify").post(userController.verifyEmail);
 router.route("/login").post(userController.login);
-
+router.route("/forgot-password").post(userController.forgotPassword);
+router.route("/reset-password/:token").patch(userController.resetPassword);
+router.route("/resend-verification").post(userController.resendVerification);
 router.route("/me").get(authController.protect, userController.getUser);
+router
+  .route("/update-password")
+  .patch(authController.protect, userController.updatePassword);
+
 router
   .route("/update-me")
   .patch(
     authController.protect,
     upload.single("img_avatar_url"),
     userController.updateUser
+  );
+
+router
+  .route("/delete-user")
+  .delete(
+    authController.protect,
+    authController.restrictTo("admin"),
+    userController.deleteUser
   );
 
 module.exports = router;
