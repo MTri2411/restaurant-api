@@ -45,11 +45,11 @@ router
   );
 
 router
-  .route("/delete-user")
+  .route("/delete-user/:id")
   .delete(
     authController.protect,
     authController.restrictTo("admin"),
-    userController.deleteUser
+    userController.deleteUserById
   );
 
 module.exports = router;

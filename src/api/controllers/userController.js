@@ -2,7 +2,7 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/UserModel");
 const {
-  sendMail,
+  sendVerificationEmail,
   sendResetPasswordMail,
 } = require("../services/sendMailServices");
 const { signToken } = require("../services/jwtServices");
@@ -40,7 +40,7 @@ exports.registerUser = catchAsync(async (req, res, next) => {
   const user = await User.create(req.body);
   const verificationCode = Math.floor(100000 + Math.random() * 900000);
   user.verificationCode = verificationCode;
-  await sendMail(user.email, verificationCode);
+  await sendVerificationEmail(user.email, verificationCode);
   await user.save();
 
   res.status(201).json({
@@ -224,7 +224,7 @@ exports.resendVerification = catchAsync(async (req, res, next) => {
 
   const verificationCode = Math.floor(100000 + Math.random() * 900000);
   user.verificationCode = verificationCode;
-  await sendMail(user.email, verificationCode);
+  await sendVerificationEmail(user.email, verificationCode);
   await user.save();
 
   res.status(200).json({
@@ -233,8 +233,11 @@ exports.resendVerification = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteUser = catchAsync(async (req, res, next) => {
-  await User.findByIdAndDelete(req.user.id);
+exports.deleteUserById = catchAsync(async (req, res, next) => {
+  const user = await User.findByIdAndDelete(req.params.id);
+  if (!user) {
+    return next(new AppError("User not found!", 404));
+  }
   res.status(204).json({
     status: "success",
     message: "User deleted successfully!",
