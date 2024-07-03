@@ -7,19 +7,16 @@ const slugify = require("slugify");
 
 exports.getAllMenuItem = catchAsync(async (req, res, next) => {
   const projection = {
-    idDelete: 0,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
   };
 
   // Get menu items
-  let menuItems = await MenuItem.find(
-    {
-      isDelete: false,
-    },
-    projection
-  ).lean();
+  let menuItems = await MenuItem.find({}, projection)
+    .populate({ path: "options", select: "name image_url" })
+    .populate({ path: "category_id", select: "name engName " })
+    .lean();
 
   for (const menuItem of menuItems) {
     const category = await Category.findOne({ _id: menuItem.category_id });
@@ -38,7 +35,6 @@ exports.getAllMenuItem = catchAsync(async (req, res, next) => {
 
 exports.getMenuItemsByCategoryId = catchAsync(async (req, res, next) => {
   const projection = {
-    isDelete: 0,
     createdAt: 0,
     updatedAt: 0,
     __v: 0,
@@ -50,10 +46,9 @@ exports.getMenuItemsByCategoryId = catchAsync(async (req, res, next) => {
   const menuItemsByCategoryId = await MenuItem.find(
     {
       category_id: categoryId,
-      isDelete: false,
     },
     projection
-  );
+  ).populate({ path: "options", select: "name image_url" });
 
   res.status(200).json({
     success: "success",
@@ -69,14 +64,12 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
     "description",
     "price",
     "image_url",
-    "rating",
     "options",
   ];
   checkSpellFields(arrSchemaFields, req.body);
 
   const { categoryId } = req.params;
-  const { name, engName, description, price, image_url, rating, options } =
-    req.body;
+  const { name, options } = req.body;
 
   // Create slug for menu item
   const slug = slugify(name, {
@@ -85,113 +78,62 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
     lower: true,
   });
 
-  // Update the soft deleted menuItem with the same name
-  const upsertMenuItem = await MenuItem.findOneAndUpdate(
-    {
-      name,
-      isDelete: true,
-    },
-    {
-      engName: engName || "",
-      description: description || "",
-      price,
-      image_url:
-        image_url ||
-        "https://res.cloudinary.com/dexkjvage/image/upload/v1718890934/DEFAULT_IMAGE_s9k5wq.jpg",
-      rating: rating || 0,
-      options: options || [],
-      slug,
-      isDelete: false,
-      category_id: categoryId,
-    },
-    {
-      new: true,
-      runValidators: true,
-      upsert: true,
-    }
+  req.body.slug = slug;
+  req.body.options = JSON.parse(options);
+  req.body.image_url = req.file.path;
+  req.body.category_id = categoryId;
+
+  const newMenuItem = await MenuItem.create(req.body);
+
+  // Respone
+  res.status(201).json({
+    status: "success",
+    data: newMenuItem,
+  });
+});
+
+exports.updateMenuItem = catchAsync(async (req, res, next) => {
+  const arrSchemaFields = [
+    "name",
+    "engName",
+    "description",
+    "price",
+    "image_url",
+    "options",
+  ];
+  checkSpellFields(arrSchemaFields, req.body);
+
+  const { categoryId, menuItemId } = req.params;
+  const { name, options } = req.body;
+
+  // Create slug for category
+  let slug = null;
+  if (name) {
+    slug = slugify(name, {
+      locales: "vi",
+      trim: true,
+      lower: true,
+    });
+
+    req.body.slug = slug;
+  }
+
+  req.body.options = JSON.parse(options);
+  req.body.image_url = req.file.path;
+  req.body.category_id = categoryId;
+
+  const updateMenuItem = await MenuItem.findByIdAndUpdate(
+    menuItemId,
+    req.body,
+    { new: true, runValidators: true }
   );
 
   // Respone
   res.status(201).json({
     status: "success",
-    data: upsertMenuItem,
+    data: updateMenuItem,
   });
 });
-
-// exports.updateMenuItem = catchAsync(async (req, res, next) => {
-//   const { categoryId, menuItemId } = req.params;
-//   const { name } = req.body;
-
-//   // Find menu item in database
-//   const menuItem = await MenuItem.findById(menuItemId);
-//   if (!menuItem)
-//     return next(new AppError("No menu item found with that ID", 404));
-
-//   // Create slug for menu item
-//   const slug = slugify(name, {
-//     locales: "vi",
-//     trim: true,
-//     lower: true,
-//   });
-
-//   // Check already menu item by slug
-//   const existingMenuItem = await MenuItem.find({
-//     slug: slug,
-//     _id: { $ne: menuItem._id },
-//   });
-
-//   if (existingMenuItem.length !== 0)
-//     return next(new AppError("You already have this menu item", 400));
-
-//   req.body.slug = slug;
-//   req.body.category_id = categoryId;
-
-//   // Update new menu item in database
-//   const updateMenuItem = await MenuItem.findByIdAndUpdate(
-//     menuItemId,
-//     req.body,
-//     {
-//       new: true,
-//       runValidators: true,
-//       select:
-//         "_id name engName description price image_url rating slug isDelete options category_id",
-//     }
-//   );
-
-//   res.status(200).json({
-//     status: "success",
-//     data: updateMenuItem,
-//   });
-// });
-
-// exports.softDeleteMenuItem = catchAsync(async (req, res, next) => {
-//   const { menuItemId } = req.params;
-
-//   // Find menu item in database
-//   const menuItem = await MenuItem.findById(menuItemId);
-//   if (!menuItem) {
-//     return next(new AppError("No category found with this ID", 404));
-//   }
-
-//   // Delete menu item
-//   const softDeleteMenuItem = await MenuItem.findByIdAndUpdate(
-//     menuItemId,
-//     {
-//       isDelete: true,
-//     },
-//     {
-//       new: true,
-//       runValidators: true,
-//       select:
-//         "_id name engName description price image_url rating slug isDelete options category_id",
-//     }
-//   );
-
-//   res.status(200).json({
-//     status: "success",
-//     data: softDeleteMenuItem,
-//   });
-// });
 
 // exports.hardDeleteMenuItem = catchAsync(async (req, res, next) => {
 //   const { menuItemId } = req.params;

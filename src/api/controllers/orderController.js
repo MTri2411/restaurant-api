@@ -1,4 +1,5 @@
 const Order = require("../models/OrderModel");
+const MenuItem = require("../models/MenuItemModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -14,6 +15,16 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 
   if (existingOrder) {
     for (let newItem of items) {
+      // Find the existing menu item
+      const existingMenuItem = await MenuItem.findOne({
+        _id: newItem.menuItemId,
+        isDelete: false,
+      });
+
+      if (!existingMenuItem) {
+        return next(new AppError("Menu item is not on the menu", 404));
+      }
+
       newItem.createdAt = Date.now();
       existingOrder.items.push(newItem);
     }
@@ -24,7 +35,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
       existingOrder,
       { new: true, runValidators: true }
     ).populate({
-      path: "items.menuItem",
+      path: "items.menuItemId",
       select: "name engName price image_url rating",
     });
 
@@ -37,7 +48,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   await Order.create({ userId, tableId, items });
 
   const newOrder = await Order.findOne({ userId, tableId }).populate({
-    path: "items.menuItem",
+    path: "items.menuItemId",
     select: "name engName price image_url rating",
   });
 

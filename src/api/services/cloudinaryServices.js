@@ -11,9 +11,13 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "PRO2052-restaurant",
+    folder: "restaurant_image",
     allowedFormats: ["jpg", "png"],
-    transformation: [{ width: 500, height: 500, crop: "limit" }],
+    transformation: [
+      { width: 500, height: 500, crop: "limit" },
+      { quality: "auto" },
+      { fetch_format: "auto" },
+    ],
   },
 });
 
