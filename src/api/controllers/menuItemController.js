@@ -79,9 +79,15 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
   });
 
   req.body.slug = slug;
-  req.body.options = JSON.parse(options);
-  req.body.image_url = req.file.path;
   req.body.category_id = categoryId;
+
+  if (options) {
+    req.body.options = JSON.parse(options);
+  }
+
+  if (req.file) {
+    req.body.image_url = req.file.path;
+  }
 
   const newMenuItem = await MenuItem.create(req.body);
 
@@ -117,10 +123,16 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
 
     req.body.slug = slug;
   }
-
-  req.body.options = JSON.parse(options);
-  req.body.image_url = req.file.path;
+  
   req.body.category_id = categoryId;
+
+  if (options) {
+    req.body.options = JSON.parse(options);
+  }
+
+  if (req.file) {
+    req.body.image_url = req.file.path;
+  }
 
   const updateMenuItem = await MenuItem.findByIdAndUpdate(
     menuItemId,
