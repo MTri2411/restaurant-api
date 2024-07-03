@@ -40,25 +40,27 @@ const menuItemSchema = new mongoose.Schema(
 
     slug: String,
 
-    isDelete: {
-      type: Boolean,
-      default: false,
-    },
+    // options: [
+    //   {
+    //     _id: false,
+
+    //     name: {
+    //       type: String,
+    //       trim: true,
+    //     },
+
+    //     image_url: {
+    //       type: String,
+    //       default:
+    //         "https://res.cloudinary.com/dexkjvage/image/upload/v1718890934/DEFAULT_IMAGE_s9k5wq.jpg",
+    //     },
+    //   },
+    // ],
 
     options: [
       {
-        _id: false,
-
-        name: {
-          type: String,
-          trim: true,
-        },
-
-        image_url: {
-          type: String,
-          default:
-            "https://res.cloudinary.com/dexkjvage/image/upload/v1718890934/DEFAULT_IMAGE_s9k5wq.jpg",
-        },
+        type: mongoose.Schema.ObjectId,
+        ref: "menuItems",
       },
     ],
 
@@ -70,22 +72,33 @@ const menuItemSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    // toJSON: {
-    //   virtuals: true,
-    //   transform: function (doc, ret) {
-    //     delete ret.id;
-    //   },
-    // },
-    // toObject: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        delete ret.id;
+        if (ret.options) {
+          ret.options.forEach((element) => {
+            delete element.id;
+          });
+        }
+      },
+    },
+    toObject: { virtuals: true },
   }
 );
 
-// // Virtual category
-// menuItemSchema.virtual("category", {
-//   ref: "categories",
-//   localField: "category_id",
-//   foreignField: "_id",
-// });
+// Virtual
+menuItemSchema.virtual("options.optionItem", {
+  ref: "menuItems",
+  localField: "options",
+  foreignField: "_id",
+});
+
+menuItemSchema.virtual("category_id.categoryInfor", {
+  ref: "categories",
+  localField: "category_id",
+  foreignField: "_id",
+});
 
 const MenuItem = mongoose.model("menuItems", menuItemSchema);
 module.exports = MenuItem;
