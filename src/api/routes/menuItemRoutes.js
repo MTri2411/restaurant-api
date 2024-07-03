@@ -26,6 +26,10 @@ router
     authController.restrictTo("admin"),
     upload.single("image_url"),
     menuItemController.updateMenuItem
+  )
+  .delete(
+    authController.restrictTo("admin"),
+    menuItemController.deleteMenuItem
   );
 
 module.exports = router;
