@@ -80,14 +80,8 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
 
   req.body.slug = slug;
   req.body.category_id = categoryId;
-
-  if (options) {
-    req.body.options = JSON.parse(options);
-  }
-
-  if (req.file) {
-    req.body.image_url = req.file.path;
-  }
+  req.body.options = options ? JSON.parse(options) : undefined;
+  req.body.image_url = req.file?.path;
 
   const newMenuItem = await MenuItem.create(req.body);
 
@@ -123,16 +117,10 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
 
     req.body.slug = slug;
   }
-  
+
   req.body.category_id = categoryId;
-
-  if (options) {
-    req.body.options = JSON.parse(options);
-  }
-
-  if (req.file) {
-    req.body.image_url = req.file.path;
-  }
+  req.body.options = options ? JSON.parse(options) : undefined;
+  req.body.image_url = req.file?.path;
 
   const updateMenuItem = await MenuItem.findByIdAndUpdate(
     menuItemId,
@@ -147,20 +135,19 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
   });
 });
 
-// exports.hardDeleteMenuItem = catchAsync(async (req, res, next) => {
-//   const { menuItemId } = req.params;
+exports.deleteMenuItem = catchAsync(async (req, res, next) => {
+  const { menuItemId } = req.params;
 
-//   // Find menu item in database
-//   const menuItem = await MenuItem.findById(menuItemId);
-//   if (!menuItem) {
-//     return next(new AppError("No category found with this ID", 404));
-//   }
+  // Delete menu item
+  const deleteMenuItem = await MenuItem.findByIdAndDelete(menuItemId);
 
-//   // Delete menu item
-//   const hardDeleteMenuItem = await MenuItem.findByIdAndDelete(menuItemId);
+  if (!deleteMenuItem) {
+    return next(new AppError("No category found with this ID", 404));
+  }
 
-//   res.status(200).json({
-//     status: "success",
-//     data: hardDeleteMenuItem,
-//   });
-// });
+  res.status(200).json({
+    status: "success",
+    message: "Deleted successfully",
+    data: deleteMenuItem,
+  });
+});
