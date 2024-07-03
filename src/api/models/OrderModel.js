@@ -54,6 +54,10 @@ const orderSchema = new mongoose.Schema(
       virtuals: true,
       transform: function (doc, ret) {
         delete ret.id;
+        ret.items.forEach((element) => {
+          delete element.id;
+          delete element.menuItemId.id;
+        });
       },
     },
     toObject: { virtuals: true },
