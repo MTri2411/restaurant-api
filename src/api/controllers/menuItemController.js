@@ -65,11 +65,11 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
     "price",
     "image_url",
     "options",
+    "category_id"
   ];
   checkSpellFields(arrSchemaFields, req.body);
 
-  const { categoryId } = req.params;
-  const { name, options } = req.body;
+  const { name, options, category_id } = req.body;
 
   // Create slug for menu item
   const slug = slugify(name, {
@@ -79,7 +79,7 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
   });
 
   req.body.slug = slug;
-  req.body.category_id = categoryId;
+  req.body.category_id = category_id;
   req.body.options = options ? JSON.parse(options) : undefined;
   req.body.image_url = req.file?.path;
 
@@ -100,11 +100,12 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
     "price",
     "image_url",
     "options",
+    "category_id"
   ];
   checkSpellFields(arrSchemaFields, req.body);
 
-  const { categoryId, menuItemId } = req.params;
-  const { name, options } = req.body;
+  const { menuItemId } = req.params;
+  const { name, options, category_id } = req.body;
 
   // Create slug for category
   let slug = null;
@@ -118,7 +119,7 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
     req.body.slug = slug;
   }
 
-  req.body.category_id = categoryId;
+  req.body.category_id = category_id;
   req.body.options = options ? JSON.parse(options) : undefined;
   req.body.image_url = req.file?.path;
 
