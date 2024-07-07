@@ -17,8 +17,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     for (let newItem of items) {
       // Find the existing menu item
       const existingMenuItem = await MenuItem.findOne({
-        _id: newItem.menuItemId,
-        isDelete: false,
+        _id: newItem.menuItemId
       });
 
       if (!existingMenuItem) {
