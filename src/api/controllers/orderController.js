@@ -4,6 +4,86 @@ const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
 
+exports.getOrderByTableIdForStaff = catchAsync(async (req, res, next) => {
+  const projection = {
+    createdAt: 0,
+    updatedAt: 0,
+    __v: 0,
+  };
+
+  const { tableId } = req.params;
+
+  let items = [];
+  // Get order by table id
+  const orders = await Order.find({ tableId }, projection).populate({
+    path: "items.menuItemId",
+    select: "name engName price image_url rating",
+  });
+
+  // Check if no order found
+  if (orders.length === 0) return next(new AppError("No order found", 404));
+
+  for (const order of orders) {
+    items.push(...order.items);
+  }
+
+  res.status(200).json({
+    success: "success",
+    totalOrders: items.length,
+    data: items,
+  });
+});
+
+exports.getOrderByTableIdForClient = catchAsync(async (req, res, next) => {
+  const projection = {
+    createdAt: 0,
+    updatedAt: 0,
+    __v: 0,
+  };
+
+  const { tableId } = req.params;
+
+  // Get order by table id
+  const orders = await Order.find({ tableId }, projection).populate({
+    path: "items.menuItemId",
+    select: "name engName price image_url rating",
+  });
+
+  // Check if no order found
+  if (orders.length === 0) return next(new AppError("No order found", 404));
+
+  res.status(200).json({
+    success: "success",
+    totalOrders: orders.length,
+    data: orders,
+  });
+});
+
+exports.getOrderByUserId = catchAsync(async (req, res, next) => {
+  const projection = {
+    createdAt: 0,
+    updatedAt: 0,
+    __v: 0,
+  };
+
+  const { _id } = req.user;
+
+  // Get order by user id
+  const orders = await Order.find({ userId: _id }, projection).populate({
+    path: "items.menuItemId",
+    select: "name engName price image_url rating",
+  });
+
+  // Check if no order found
+  if (orders.length === 0) return next(new AppError("No order found", 404));
+
+  res.status(200).json({
+    success: "success",
+    totalOrders: orders.length,
+    data: orders,
+  });
+});
+
 exports.createOrder = catchAsync(async (req, res, next) => {
   checkSpellFields(["items"], req.body);
 
