@@ -119,7 +119,7 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
     req.body.slug = slug;
   }
 
-  req.body.category_id = category_id;
+  req.body.category_id = category_id ? category_id : undefined;
   req.body.options = options ? JSON.parse(options) : undefined;
   req.body.image_url = req.file?.path;
 
