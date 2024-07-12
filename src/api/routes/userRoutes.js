@@ -6,9 +6,6 @@ const upload = require("../services/cloudinaryServices");
 
 const router = express.Router();
 
-// redirect to table router (mergeParams)
-router.use("/:userId/tables/", tableRouter);
-
 router
   .route("/")
   .get(

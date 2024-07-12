@@ -46,6 +46,12 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
+
+    paymentStatus: {
+      type: String,
+      enum: ["paid", "unpaid"],
+      default: "unpaid",
+    },
   },
   {
     timestamps: true,
@@ -62,9 +68,6 @@ const orderSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
-
-// Compound unique index
-orderSchema.index({ userId: 1, tableId: 1 }, { unique: true });
 
 // Virtual
 orderSchema.virtual("items.menuItem", {

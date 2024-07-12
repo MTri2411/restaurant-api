@@ -15,7 +15,10 @@ exports.getOrderByTableIdForStaff = catchAsync(async (req, res, next) => {
 
   let items = [];
   // Get order by table id
-  const orders = await Order.find({ tableId }, projection).populate({
+  const orders = await Order.find(
+    { tableId, paymentStatus: "unpaid" },
+    projection
+  ).populate({
     path: "items.menuItemId",
     select: "name engName price image_url rating",
   });
@@ -44,7 +47,10 @@ exports.getOrderByTableIdForClient = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
 
   // Get order by table id
-  const orders = await Order.find({ tableId }, projection).populate({
+  const orders = await Order.find(
+    { tableId, paymentStatus: "unpaid" },
+    projection
+  ).populate({
     path: "items.menuItemId",
     select: "name engName price image_url rating",
   });
@@ -69,7 +75,10 @@ exports.getOrderByUserId = catchAsync(async (req, res, next) => {
   const { _id } = req.user;
 
   // Get order by user id
-  const orders = await Order.find({ userId: _id }, projection).populate({
+  const orders = await Order.find(
+    { userId: _id, paymentStatus: "unpaid" },
+    projection
+  ).populate({
     path: "items.menuItemId",
     select: "name engName price image_url rating",
   });
@@ -87,17 +96,22 @@ exports.getOrderByUserId = catchAsync(async (req, res, next) => {
 exports.createOrder = catchAsync(async (req, res, next) => {
   checkSpellFields(["items"], req.body);
 
-  const { userId, tableId } = req.params;
+  const userId = req.user._id;
+  const { tableId } = req.params;
   const { items } = req.body;
 
   // Find the existing order
-  let existingOrder = await Order.findOne({ userId, tableId });
+  let existingOrder = await Order.findOne({
+    userId,
+    tableId,
+    paymentStatus: "unpaid",
+  });
 
   if (existingOrder) {
     for (let newItem of items) {
       // Find the existing menu item
       const existingMenuItem = await MenuItem.findOne({
-        _id: newItem.menuItemId
+        _id: newItem.menuItemId,
       });
 
       if (!existingMenuItem) {
@@ -138,12 +152,14 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteOrderItem = catchAsync(async (req, res, next) => {
-  const { userId, tableId, itemId } = req.params;
+  const userId = req.user._id;
+  const { tableId, itemId } = req.params;
 
   // Find the existing order
   let existingOrder = await Order.findOne({
     userId,
     tableId,
+    paymentStatus: "unpaid",
   });
 
   if (!existingOrder) {
@@ -159,9 +175,11 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
     return next(new AppError("No item found with this ID", 404));
   }
 
+  const currentDate = Date.now();
+
   // Time allowed for delete = 1p30s
   const timeAllowedForDelete =
-    (Date.now() - Date.parse(existingOrderItem.createdAt)) / 1000;
+    (currentDate - Date.parse(existingOrderItem.createdAt)) / 1000;
 
   if (timeAllowedForDelete > 90) {
     return next(new AppError("Time out to delete", 400));
@@ -169,7 +187,7 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
 
   // Delete item in orders.items database
   await Order.updateOne(
-    { userId, tableId },
+    { userId, tableId, paymentStatus: "unpaid" },
     { $pull: { items: { _id: itemId } } }
   );
 
