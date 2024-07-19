@@ -100,6 +100,11 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
   const { items } = req.body;
 
+  const amount = await items.reduce(async (accumulator, currentValue) => {
+    const currentMenuItem = await MenuItem.findById(currentValue.menuItemId);
+    return (await accumulator) + currentMenuItem.price * currentValue.quantity;
+  }, 0);
+
   // Find the existing order
   let existingOrder = await Order.findOne({
     userId,
@@ -122,6 +127,8 @@ exports.createOrder = catchAsync(async (req, res, next) => {
       existingOrder.items.push(newItem);
     }
 
+    existingOrder.amount += amount;
+
     // Update order
     const updatedOrder = await Order.findByIdAndUpdate(
       existingOrder._id,
@@ -138,7 +145,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     });
   }
 
-  await Order.create({ userId, tableId, items });
+  await Order.create({ userId, tableId, items, amount });
 
   const newOrder = await Order.findOne({ userId, tableId }).populate({
     path: "items.menuItemId",
@@ -152,23 +159,30 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteOrderItem = catchAsync(async (req, res, next) => {
-  const userId = req.user._id;
   const { tableId, itemId } = req.params;
 
   // Find the existing order
-  let existingOrder = await Order.findOne({
-    userId,
-    tableId,
-    paymentStatus: "unpaid",
-  });
+  let existingOrder = await Order.find(
+    {
+      tableId,
+      paymentStatus: "unpaid",
+    },
+    {
+      items: 1,
+    }
+  );
 
-  if (!existingOrder) {
+  if (existingOrder.length === 0) {
     return next(new AppError("No order found with this ID", 404));
   }
 
   // Find the existing item in order
-  let existingOrderItem = existingOrder.items.find(
-    (item) => item._id.toString() === itemId
+  let existingOrderItem;
+  existingOrder = existingOrder.filter(
+    (eachOrder) =>
+      (existingOrderItem = eachOrder.items.find(
+        (item) => item._id.toString() === itemId
+      ))
   );
 
   if (!existingOrderItem) {
@@ -186,13 +200,31 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
   }
 
   // Delete item in orders.items database
-  await Order.updateOne(
-    { userId, tableId, paymentStatus: "unpaid" },
-    { $pull: { items: { _id: itemId } } }
+  const updatedOrderItems = await Order.findByIdAndUpdate(
+    existingOrder[0]._id,
+    { $pull: { items: { _id: itemId } } },
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).populate({
+    path: "items.menuItemId",
+    select: "price",
+  });
+
+  updatedOrderItems.amount = updatedOrderItems.items.reduce(
+    (accumulator, currentValue) => {
+      return (
+        accumulator + currentValue.menuItemId.price * currentValue.quantity
+      );
+    },
+    0
   );
+
+  updatedOrderItems.save();
 
   res.status(200).json({
     status: "success",
-    data: existingOrderItem,
+    data: updatedOrderItems,
   });
 });
