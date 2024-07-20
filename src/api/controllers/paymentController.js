@@ -66,62 +66,54 @@ const validatePayment = async (req, res, next) => {
   return orders;
 };
 
-exports.zaloPaymentPerUser = catchAsync(async (req, res, next) => {
+exports.zaloPayment = catchAsync(async (req, res, next) => {
+  const orders = await validatePayment(req, res, next);
   const userId = req.user._id;
 
-  const orderByUserId = await Order.findOne(
-    { userId, paymentStatus: "unpaid" },
-    {
-      "items.createdAt": 0,
-      "items.status": 0,
-    }
-  ).populate({
-    path: "items.menuItemId",
-    select: "name price",
-  });
-
-  if (!orderByUserId) {
+  if (orders.length === 0) {
     return next(new AppError("No order found", 404));
   }
 
   let items = [];
-  for (const orderItem of orderByUserId.items) {
-    const existingOrderItemInItemsIndex = items.findIndex(
-      (item) => item.id === orderItem.menuItemId._id.toString()
-    );
+  orders.flatMap((order) => {
+    return order.items.flatMap((orderItem) => {
+      const existingOrderItemInItemsIndex = items.findIndex(
+        (item) => item.id === orderItem.menuItemId._id.toString()
+      );
 
-    if (existingOrderItemInItemsIndex !== -1) {
-      items[existingOrderItemInItemsIndex].quantity += orderItem.quantity;
-    } else {
-      items.push({
-        id: orderItem.menuItemId._id.toString(),
-        name: orderItem.menuItemId.name,
-        quantity: orderItem.quantity,
-        price: orderItem.menuItemId.price,
-      });
-    }
-  }
+      if (existingOrderItemInItemsIndex !== -1) {
+        items[existingOrderItemInItemsIndex].quantity += orderItem.quantity;
+      } else {
+        items.push({
+          id: orderItem.menuItemId._id.toString(),
+          name: orderItem.menuItemId.name,
+          quantity: orderItem.quantity,
+          price: orderItem.menuItemId.price,
+        });
+      }
+    });
+  });
 
-  let amount = items.reduce(
+  const amount = items.reduce(
     (accumulator, currentValue) =>
       accumulator + currentValue.quantity * currentValue.price,
     0
   );
 
-  const embed_data = { orderId: [orderByUserId._id] };
-
+  const orderId = orders.map((order) => order._id);
+  const embed_data = { orderId };
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
-    app_trans_id: `${moment().format("YYMMDD")}_${transID}`,
+    app_trans_id: `${moment().format("YYMMDD")}${transID}`,
     app_user: userId,
     app_time: Date.now(), // miliseconds
     item: JSON.stringify(items),
     embed_data: JSON.stringify(embed_data),
     amount: amount,
-    description: `Payment for the order #${transID} - ${orderByUserId._id}`,
+    description: `Payment for the order #${transID}`,
     callback_url:
-      "https://pro2052-restaurant-api.onrender.com/v1/payments/callback-payment",
+      "https://pro2052-restaurant-api.onrender.com/v1/payments/zalopayment-callback",
   };
 
   // appid|app_trans_id|appuser|amount|apptime|embeddata|item
@@ -160,6 +152,7 @@ exports.zaloPaymentPerUser = catchAsync(async (req, res, next) => {
 
 exports.zaloPaymentCallback = async (req, res, next) => {
   let result = {};
+  const session = await mongoose.startSession();
 
   try {
     let dataStr = req.body.data;
@@ -173,20 +166,17 @@ exports.zaloPaymentCallback = async (req, res, next) => {
       result.return_code = -1;
       result.return_message = "mac not equal";
     } else {
+      session.startTransaction();
       // thanh toán thành công
       // merchant cập nhật trạng thái cho đơn hàng
       let dataJson = JSON.parse(dataStr, config.key2);
       const orderId = JSON.parse(dataJson.embed_data).orderId;
-      console.log(orderId);
 
-      orderId.forEach(async (eachOrder) => {
-        await Order.updateOne(
-          { _id: eachOrder },
-          {
-            paymentStatus: "paid",
-          }
-        );
-      });
+      await Order.updateMany(
+        { _id: { $in: orderId } },
+        { paymentStatus: "paid" },
+        { session }
+      );
 
       await Payment.create({
         orderId: orderId,
@@ -197,10 +187,17 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         zpTransactionId: dataJson.zp_trans_id,
       });
 
+      await session.commitTransaction();
+      session.endSession();
+
       result.return_code = 1;
       result.return_message = "success";
     }
   } catch (ex) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error processing ZaloPay callback:", ex);
+
     result.return_code = 0; // ZaloPay server sẽ callback lại (tối đa 3 lần)
     result.return_message = ex.message;
   }
@@ -229,23 +226,19 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     const orderIds = orders.map((order) => order._id);
     await Order.updateMany(
       { _id: { $in: orderIds } },
-      {
-        $set: { paymentStatus: "paid" },
-      },
+      { paymentStatus: "paid" },
       { session }
     );
-
-    const payment = await Payment.create(
-      {
-        orderId: orderIds,
-        userId: req.user._id,
-        amount: totalAmount,
-        paymentMethod: "Cash",
-        appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
-          Math.random() * 1000000
-        )}`,
-      }
-    );
+    
+    const payment = await Payment.create({
+      orderId: orderIds,
+      userId: req.user._id,
+      amount: totalAmount,
+      paymentMethod: "Cash",
+      appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
+        Math.random() * 1000000
+      )}`,
+    });
 
     await session.commitTransaction();
     session.endSession();
