@@ -23,9 +23,6 @@ exports.getOrderByTableIdForStaff = catchAsync(async (req, res, next) => {
     select: "name engName price image_url rating",
   });
 
-  // Check if no order found
-  if (orders.length === 0) return next(new AppError("No order found", 404));
-
   for (const order of orders) {
     items.push(...order.items);
   }
@@ -147,7 +144,11 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 
   await Order.create({ userId, tableId, items, amount });
 
-  const newOrder = await Order.findOne({ userId, tableId }).populate({
+  const newOrder = await Order.findOne({
+    userId,
+    tableId,
+    paymentStatus: "unpaid",
+  }).populate({
     path: "items.menuItemId",
     select: "name engName price image_url rating",
   });
