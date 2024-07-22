@@ -3,11 +3,14 @@ const promotionsController = require("../controllers/promotionsController");
 const authController = require("../controllers/authController");
 
 const router = express.Router();
-router.route("/:id").get(promotionsController.getPromotion);
-
+router
+  .route("/:id")
+  .get(authController.protect, promotionsController.getPromotion);
+router
+  .route("/")
+  .get(authController.protect, promotionsController.getPromotions);
 router.use(authController.protect, authController.restrictTo("admin"));
 
-router.route("/").get(promotionsController.getPromotions);
 router.route("/").post(promotionsController.createPromotion);
 router.route("/:id").patch(promotionsController.updatePromotion);
 router.route("/:id").delete(promotionsController.deletePromotion);
