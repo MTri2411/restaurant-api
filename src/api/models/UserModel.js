@@ -59,10 +59,12 @@ const userSchema = new Schema({
     type: Number,
     default: 0,
   },
-  discount_code: {
-    type: String,
-    default: null,
-  },
+
+  // promotion: {
+  //   type: Schema.Types.ObjectId,
+  //   ref: "Promotion",
+  // },
+
   passwordChangedAt: Date,
 
   passwordResetToken: String,

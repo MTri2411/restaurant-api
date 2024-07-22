@@ -209,14 +209,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
 exports.cashPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
 
-  const totalAmount = orders.reduce((accumulator, order) => {
-    return (
-      accumulator +
-      order.items.reduce((subtotal, item) => {
-        return subtotal + item.menuItemId.price * item.quantity;
-      }, 0)
-    );
-  }, 0);
+  const { totalAmount, finalTotal, promotion } = req.body.finalTotal;
 
   const session = await mongoose.startSession();
 
@@ -229,11 +222,12 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       { paymentStatus: "paid" },
       { session }
     );
-    
+
     const payment = await Payment.create({
       orderId: orderIds,
       userId: req.user._id,
-      amount: totalAmount,
+      amount: finalTotal,
+      voucher: promotion ? promotion.code : undefined,
       paymentMethod: "Cash",
       appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
         Math.random() * 1000000

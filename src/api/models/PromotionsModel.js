@@ -35,9 +35,28 @@ const promotionSchema = new mongoose.Schema(
         return this.discountType === "maxPercentage";
       },
     },
+
+    usedCount: {
+      type: Number,
+      default: 0,
+    },
+
+    maxUsage: {
+      type: Number,
+    },
+
+    usageLimitPerUser: {
+      type: Number,
+    },
+
     startDate: {
       type: Date,
       required: [true, "A promotion must have a start date!"],
+      default: function () {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return now;
+      },
     },
     endDate: {
       type: Date,
@@ -47,6 +66,11 @@ const promotionSchema = new mongoose.Schema(
           return value > this.startDate;
         },
         message: "End date must be after start date!",
+      },
+      default: function () {
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+        return now;
       },
     },
     isActive: {
@@ -58,26 +82,6 @@ const promotionSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-// Method to check if the promotion is active
-promotionSchema.methods.isActivePromotion = function () {
-  const currentDate = new Date();
-  return (
-    this.isActive &&
-    currentDate >= this.startDate &&
-    currentDate <= this.endDate
-  );
-};
-
-// Static method to find active promotions
-promotionSchema.statics.findActivePromotions = function () {
-  const currentDate = new Date();
-  return this.find({
-    isActive: true,
-    startDate: { $lte: currentDate },
-    endDate: { $gte: currentDate },
-  });
-};
 
 const Promotion = mongoose.model("Promotion", promotionSchema);
 

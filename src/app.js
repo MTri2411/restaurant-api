@@ -70,6 +70,7 @@ app.use("/v1/categories", categoryRouter);
 app.use("/v1/menu-items", menuItemRouter);
 app.use("/v1/orders", orderRouter);
 app.use("/v1/payments", paymentRouter);
+app.use("/v1/promotions", promotionRouter);
 
 //: ******* ERROR HANDLING *******
 // 1) Handle unhandled routes

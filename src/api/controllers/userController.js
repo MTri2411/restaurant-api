@@ -1,6 +1,7 @@
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/UserModel");
+const Promotion = require("../models/PromotionsModel");
 const {
   sendVerificationEmail,
   sendResetPasswordMail,
@@ -241,3 +242,20 @@ exports.deleteUserById = catchAsync(async (req, res, next) => {
     message: "User deleted successfully!",
   });
 });
+
+// // Save promotion code to user
+// exports.savePromotion = catchAsync(async (req, res, next) => {
+//   const { promotionId } = req.body;
+//   const user = await User.findById(req.user.id);
+//   if (!user) {
+//     return next(new AppError("User not found", 404));
+//   }
+
+//   user.promotion = promotionId;
+//   await user.save();
+
+//   res.status(200).json({
+//     status: "success",
+//     message: "Promotion code saved successfully!",
+//   });
+// });

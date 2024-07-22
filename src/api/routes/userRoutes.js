@@ -29,6 +29,7 @@ router.route("/forgot-password").post(userController.forgotPassword);
 router.route("/reset-password/:token").patch(userController.resetPassword);
 router.route("/resend-verification").post(userController.resendVerification);
 router.route("/me").get(authController.protect, userController.getUser);
+
 router
   .route("/update-password")
   .patch(authController.protect, userController.updatePassword);
