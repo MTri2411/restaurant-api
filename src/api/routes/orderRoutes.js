@@ -8,22 +8,18 @@ router.use(authController.protect);
 
 router
   .route("/")
-  .get(orderController.getOrderByUserId)
+  .get(orderController.getOrders)
   .post(
     authController.restrictTo("staff", "client"),
     orderController.createOrder
   );
 
 router
-  .route("/get-order-by-tableId/:tableId")
-  .get(orderController.getOrderByTableIdForStaff);
-
-  router
-  .route("/get-order-by-tableId-for-client/:tableId")
-  .get(orderController.getOrderByTableIdForClient);
-
-router
-  .route("/:itemId")
+  .route("/items/:itemId")
+  .patch(
+    authController.restrictTo("staff", "client"),
+    orderController.updateStatusItem
+  )
   .delete(
     authController.restrictTo("staff", "client"),
     orderController.deleteOrderItem
