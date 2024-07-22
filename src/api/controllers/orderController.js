@@ -226,3 +226,38 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
     data: updatedOrderItems,
   });
 });
+
+exports.updateItemStatus = catchAsync(async (req, res, next) => {
+  const { tableId } = req.params;
+  const { updateAll, itemIds } = req.body;
+
+  let order = await Order.findOne({ tableId, paymentStatus: "unpaid" });
+
+  if (!order) {
+    return next(new AppError("No order found with this table ID", 404));
+  }
+
+  // Kiểm tra nếu cần cập nhật tất cả items
+  if (updateAll) {
+    order.items.forEach((item) => {
+      if (item.status === "loading") {
+        item.status = "finished";
+      }
+    });
+  } else {
+    // Cập nhật các items cụ thể
+    itemIds.forEach((itemId) => {
+      const item = order.items.find((item) => item._id.toString() === itemId);
+      if (item && item.status === "loading") {
+        item.status = "finished";
+      }
+    });
+  }
+
+  await order.save();
+
+  res.status(200).json({
+    status: "success",
+    data: order,
+  });
+});

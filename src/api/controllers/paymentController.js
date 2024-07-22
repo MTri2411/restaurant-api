@@ -1,5 +1,6 @@
 const Order = require("../models/OrderModel");
 const Payment = require("../models/PaymentModel");
+const Promotion = require("../models/PromotionsModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -209,7 +210,17 @@ exports.zaloPaymentCallback = async (req, res, next) => {
 exports.cashPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
 
-  const { totalAmount, finalTotal, promotion } = req.body.finalTotal;
+  const totalAmount = orders.reduce((accumulator, order) => {
+    return (
+      accumulator +
+      order.items.reduce((subtotal, item) => {
+        return subtotal + item.menuItemId.price * item.quantity;
+      }, 0)
+    );
+  }, 0);
+
+  const finalTotal = req.finalTotal || totalAmount;
+  const promotionCode = req.promotion ? req.promotion.code : undefined;
 
   const session = await mongoose.startSession();
 
@@ -227,12 +238,20 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       orderId: orderIds,
       userId: req.user._id,
       amount: finalTotal,
-      voucher: promotion ? promotion.code : undefined,
+      voucher: promotionCode,
       paymentMethod: "Cash",
       appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
         Math.random() * 1000000
       )}`,
     });
+
+    if (promotionCode) {
+      await Promotion.updateOne(
+        { code: promotionCode },
+        { $inc: { usedCount: 1 } },
+        { session }
+      );
+    }
 
     await session.commitTransaction();
     session.endSession();

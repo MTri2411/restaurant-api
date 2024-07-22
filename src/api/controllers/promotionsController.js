@@ -44,7 +44,6 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Retrieve all orders at once
   const orderIds = orders.map((order) => order.orderId);
   const orderData = await Order.find({ _id: { $in: orderIds } });
 
@@ -54,7 +53,6 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
 
   let totalAmount = orderData.reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Check minimum order value for applicable discounts
   if (promotion.minOrderValue && totalAmount < promotion.minOrderValue) {
     return next(
       new AppError(
@@ -64,15 +62,12 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Apply the promotion discount
-  let finalTotal = calculateDiscount(totalAmount, promotion);
+  const finalTotal = calculateDiscount(totalAmount, promotion);
 
-  req.body.finalTotal = { totalAmount, finalTotal, promotion };
+  req.promotion = promotion;
+  req.totalAmount = totalAmount;
+  req.finalTotal = finalTotal;
 
-  // Update promotion usage count
-  await Promotion.findByIdAndUpdate(promotion._id, {
-    $inc: { usedCount: 1 },
-  });
   next();
 });
 

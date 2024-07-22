@@ -18,7 +18,7 @@ router
   .route("/get-order-by-tableId/:tableId")
   .get(orderController.getOrderByTableIdForStaff);
 
-  router
+router
   .route("/get-order-by-tableId-for-client/:tableId")
   .get(orderController.getOrderByTableIdForClient);
 
@@ -29,4 +29,7 @@ router
     orderController.deleteOrderItem
   );
 
+router
+  .route("/update-status/:itemId")
+  .patch(authController.restrictTo("staff"), orderController.updateItemStatus);
 module.exports = router;
