@@ -80,9 +80,6 @@ exports.getOrderByUserId = catchAsync(async (req, res, next) => {
     select: "name engName price image_url rating",
   });
 
-  // Check if no order found
-  if (orders.length === 0) return next(new AppError("No order found", 404));
-
   res.status(200).json({
     success: "success",
     totalOrders: orders.length,
