@@ -37,58 +37,6 @@ exports.getOrders = catchAsync(async (req, res, next) => {
   });
 });
 
-// exports.getOrderByTableIdForClient = catchAsync(async (req, res, next) => {
-//   const projection = {
-//     createdAt: 0,
-//     updatedAt: 0,
-//     __v: 0,
-//   };
-
-//   const { tableId } = req.params;
-
-//   // Get order by table id
-//   const orders = await Order.find(
-//     { tableId, paymentStatus: "unpaid" },
-//     projection
-//   ).populate({
-//     path: "items.menuItemId",
-//     select: "name engName price image_url rating",
-//   });
-
-//   // Check if no order found
-//   if (orders.length === 0) return next(new AppError("No order found", 404));
-
-//   res.status(200).json({
-//     success: "success",
-//     totalOrders: orders.length,
-//     data: orders,
-//   });
-// });
-
-// exports.getOrderByUserId = catchAsync(async (req, res, next) => {
-//   const projection = {
-//     createdAt: 0,
-//     updatedAt: 0,
-//     __v: 0,
-//   };
-
-//   const { _id } = req.user;
-
-//   // Get order by user id
-//   const orders = await Order.find(
-//     { userId: _id, paymentStatus: "unpaid" },
-//     projection
-//   ).populate({
-//     path: "items.menuItemId",
-//     select: "name engName price image_url rating",
-//   });
-
-//   res.status(200).json({
-//     success: "success",
-//     data: orders,
-//   });
-// });
-
 exports.createOrder = catchAsync(async (req, res, next) => {
   checkSpellFields(["items"], req.body);
 
@@ -97,6 +45,15 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   const { items } = req.body;
 
   const amount = await items.reduce(async (accumulator, currentValue) => {
+    // Find the existing menu item
+    const existingMenuItem = await MenuItem.findOne({
+      _id: currentValue.menuItemId,
+    });
+
+    if (!existingMenuItem) {
+      return next(new AppError("Menu item is not on the menu", 404));
+    }
+
     const currentMenuItem = await MenuItem.findById(currentValue.menuItemId);
     return (await accumulator) + currentMenuItem.price * currentValue.quantity;
   }, 0);
@@ -110,15 +67,6 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 
   if (existingOrder) {
     for (let newItem of items) {
-      // Find the existing menu item
-      const existingMenuItem = await MenuItem.findOne({
-        _id: newItem.menuItemId,
-      });
-
-      if (!existingMenuItem) {
-        return next(new AppError("Menu item is not on the menu", 404));
-      }
-
       newItem.createdAt = Date.now();
       existingOrder.items.push(newItem);
     }
@@ -251,7 +199,7 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
   }
 
   const user = await User.findOne({ _id: userId }, { role: 1 });
-  
+
   if (
     user._id.toString() !== existingOrder[0].userId.toString() &&
     user.role !== "staff"
