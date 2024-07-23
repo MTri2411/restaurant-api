@@ -39,5 +39,24 @@ const paymentSchema = new mongoose.Schema(
   }
 );
 
+// Virtual
+paymentSchema.virtual("orderId.order", {
+  ref: "orders",
+  localField: "orderId",
+  foreignField: "_id",
+});
+
+paymentSchema.virtual("orderId.userId", {
+  ref: "User",
+  localField: "orderId",
+  foreignField: "_id",
+});
+
+paymentSchema.virtual("userId.user", {
+  ref: "User",
+  localField: "userId",
+  foreignField: "_id",
+});
+
 const Payment = mongoose.model("payments", paymentSchema);
 module.exports = Payment;

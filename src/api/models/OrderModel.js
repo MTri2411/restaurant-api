@@ -81,5 +81,17 @@ orderSchema.virtual("items.menuItem", {
   foreignField: "_id",
 });
 
+orderSchema.virtual("userId.user", {
+  ref: "User",
+  localField: "userId",
+  foreignField: "_id",
+});
+
+orderSchema.virtual("tableId.table", {
+  ref: "tables",
+  localField: "tableId",
+  foreignField: "_id",
+});
+
 const Order = mongoose.model("orders", orderSchema);
 module.exports = Order;

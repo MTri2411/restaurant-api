@@ -1,6 +1,7 @@
 const Order = require("../models/OrderModel");
 const Payment = require("../models/PaymentModel");
 const Promotion = require("../models/PromotionsModel");
+const User = require("../models/UserModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -8,6 +9,7 @@ const axios = require("axios").default;
 const CryptoJS = require("crypto-js");
 const moment = require("moment");
 const mongoose = require("mongoose");
+const { options } = require("../routes/orderRoutes");
 
 const config = {
   app_id: "2554",
@@ -266,4 +268,75 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     console.log(error);
     return next(new AppError("Failed to process payment", 500));
   }
+});
+
+exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const payments = await Payment.find({ userId }, { updatedAt: 0, __v: 0 })
+    .populate({
+      path: "orderId",
+      select: "userId",
+      populate: {
+        path: "userId",
+        select: "fullName",
+      },
+    })
+    .populate({
+      path: "orderId",
+      select: "tableId",
+      populate: {
+        path: "tableId",
+        select: "tableNumber",
+      },
+    })
+    .populate({
+      path: "orderId",
+      select: "items",
+      populate: {
+        path: "items.menuItemId",
+        select: "name engName price image_url rating",
+      },
+    })
+    .populate({
+      path: "userId",
+      select: "fullName",
+    });
+
+  const transformedData = payments.map((eachPayment) => {
+    const items = eachPayment.orderId.flatMap((order) =>
+      order.items.map((item) => ({
+        menuItemId: item.menuItemId._id,
+        name: item.menuItemId.name,
+        engName: item.menuItemId.engName,
+        price: item.menuItemId.price,
+        image_url: item.menuItemId.image_url,
+        rating: item.menuItemId.rating,
+        quantity: item.quantity,
+        note: item.note,
+        options: item.options,
+      }))
+    );
+    const tableNumber = eachPayment.orderId[0].tableId.tableNumber;
+    const userPay = eachPayment.userId.fullName;
+    const userOrder = eachPayment.orderId.flatMap(
+      (order) => order.userId.fullName
+    );
+
+    const transform = {
+      ...eachPayment.toObject(),
+      tableNumber,
+      userPay,
+      userOrder,
+      items,
+    };
+
+    delete transform.orderId;
+    delete transform.userId;
+    return transform;
+  });
+
+  return res.status(200).json({
+    status: "success",
+    data: transformedData,
+  });
 });

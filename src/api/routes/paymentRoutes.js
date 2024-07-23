@@ -16,4 +16,6 @@ router
 
 router.route("/zalopayment/:tableId").post(paymentController.zaloPayment);
 
+router.route("/payments-history").get(paymentController.getPaymentsHistory);
+
 module.exports = router;
