@@ -271,14 +271,23 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
 });
 
 exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
-  const userId = req.user._id;
-  const payments = await Payment.find({ userId }, { updatedAt: 0, __v: 0 })
+  let userId = req.user._id;
+  let userIdQuery = req.query.userId;
+  const user = await User.findOne({ _id: userId }, { role: 1 });
+  if (user.role !== "client") {
+    userId = userIdQuery === undefined ? undefined : userIdQuery;
+  }
+
+  const payments = await Payment.find(
+    { ...(userId && { userId }) },
+    { updatedAt: 0, __v: 0 }
+  )
     .populate({
       path: "orderId",
       select: "userId",
       populate: {
         path: "userId",
-        select: "fullName",
+        select: "fullName img_avatar_url",
       },
     })
     .populate({
@@ -299,8 +308,9 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     })
     .populate({
       path: "userId",
-      select: "fullName",
-    });
+      select: "fullName img_avatar_url",
+    })
+    .sort({ createdAt: "desc" });
 
   const transformedData = payments.map((eachPayment) => {
     const items = eachPayment.orderId.flatMap((order) =>
@@ -317,10 +327,16 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       }))
     );
     const tableNumber = eachPayment.orderId[0].tableId.tableNumber;
-    const userPay = eachPayment.userId.fullName;
-    const userOrder = eachPayment.orderId.flatMap(
-      (order) => order.userId.fullName
-    );
+    const userPay = {
+      fullName: eachPayment.userId.fullName,
+      img_avatar_url: eachPayment.userId.img_avatar_url,
+    };
+    const userOrder = eachPayment.orderId.flatMap((order) => {
+      return {
+        fullName: order.userId.fullName,
+        img_avatar_url: order.userId.img_avatar_url,
+      };
+    });
 
     const transform = {
       ...eachPayment.toObject(),
@@ -337,6 +353,7 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
 
   return res.status(200).json({
     status: "success",
+    totalData: transformedData.length,
     data: transformedData,
   });
 });
