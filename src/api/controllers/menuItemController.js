@@ -16,6 +16,7 @@ exports.getAllMenuItem = catchAsync(async (req, res, next) => {
   let menuItems = await MenuItem.find({}, projection)
     .populate({ path: "options", select: "name image_url" })
     .populate({ path: "category_id", select: "name engName " })
+    .sort({ createdAt: "desc" })
     .lean();
 
   for (const menuItem of menuItems) {
@@ -48,7 +49,8 @@ exports.getMenuItemsByCategoryId = catchAsync(async (req, res, next) => {
       category_id: categoryId,
     },
     projection
-  ).populate({ path: "options", select: "name image_url" });
+  )
+    .populate({ path: "options", select: "name image_url" })
 
   res.status(200).json({
     success: "success",
@@ -65,7 +67,7 @@ exports.createMenuItem = catchAsync(async (req, res, next) => {
     "price",
     "image_url",
     "options",
-    "category_id"
+    "category_id",
   ];
   checkSpellFields(arrSchemaFields, req.body);
 
@@ -100,7 +102,7 @@ exports.updateMenuItem = catchAsync(async (req, res, next) => {
     "price",
     "image_url",
     "options",
-    "category_id"
+    "category_id",
   ];
   checkSpellFields(arrSchemaFields, req.body);
 
