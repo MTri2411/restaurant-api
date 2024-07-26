@@ -140,6 +140,8 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
       "endDate",
       "maxDiscount",
       "minOrderValue",
+      "maxUsage",
+      "usageLimitPerUser",
     ],
     req.body
   );
@@ -195,7 +197,6 @@ exports.updatePromotion = catchAsync(async (req, res, next) => {
     ],
     req.body
   );
-
   const promotion = await Promotion.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
@@ -239,7 +240,7 @@ exports.deletePromotion = catchAsync(async (req, res, next) => {
     return next(new AppError("Promotion not found", 404));
   }
 
-  res.status(204).json({
+  res.status(200).json({
     status: "success",
     message: "Promotion deleted",
     data: null,

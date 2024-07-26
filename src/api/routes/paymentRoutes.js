@@ -10,9 +10,7 @@ router
 
 router.use(authController.protect);
 
-router
-  .route("/cashpayment/:tableId")
-  .post(promotionController.checkPromotionCode, paymentController.cashPayment);
+router.route("/cashpayment/:tableId").post(paymentController.cashPayment);
 
 router.route("/zalopayment/:tableId").post(paymentController.zaloPayment);
 

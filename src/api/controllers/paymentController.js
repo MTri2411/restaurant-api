@@ -221,9 +221,6 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     );
   }, 0);
 
-  const finalTotal = req.finalTotal || totalAmount;
-  const promotionCode = req.promotion ? req.promotion.code : undefined;
-
   const session = await mongoose.startSession();
 
   try {
@@ -239,21 +236,12 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     const payment = await Payment.create({
       orderId: orderIds,
       userId: req.user._id,
-      amount: finalTotal,
-      voucher: promotionCode,
+      amount: totalAmount,
       paymentMethod: "Cash",
       appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
         Math.random() * 1000000
       )}`,
     });
-
-    if (promotionCode) {
-      await Promotion.updateOne(
-        { code: promotionCode },
-        { $inc: { usedCount: 1 } },
-        { session }
-      );
-    }
 
     await session.commitTransaction();
     session.endSession();
