@@ -37,8 +37,8 @@ exports.getOrders = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: "success",
     totalOrders: items.length,
-    totalAmount: totalAmount,
-    finalTotal: finalTotal,
+    totalAmount: finalTotal,
+    discountAmount: totalAmount - finalTotal,
     data: items,
   });
 });
