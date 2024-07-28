@@ -81,7 +81,8 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const finalTotal = calculateDiscount(totalAmount, promotion);
 
   Object.assign(req, { promotion, finalTotal });
-
+  console.log(req.promotion);
+  console.log(req.finalTotal);
   next();
 });
 
@@ -146,7 +147,6 @@ exports.getPromotion = catchAsync(async (req, res, next) => {
 
 exports.createPromotion = catchAsync(async (req, res, next) => {
   const requiredFields = [
-    "code",
     "discount",
     "discountType",
     "startDate",
@@ -170,7 +170,7 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
             "A maxPercentage promotion must have maxDiscount and minOrderValue fields"
           );
         }
-        if (discount > 100) {
+        if (discount >= 100) {
           errors.push("Discount cannot exceed 100% for maxPercentage type");
         }
         break;
@@ -180,7 +180,7 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
             "A percentage promotion should not have maxDiscount field"
           );
         }
-        if (discount > 100) {
+        if (discount >= 100) {
           errors.push("Discount cannot exceed 100% for percentage type");
         }
         break;
@@ -226,13 +226,31 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
       maxDiscount: maxDiscount
         ? formatCurrency(maxDiscount)
         : "không có giới hạn",
-      minOrderValue: minOrderValue
-        ? formatCurrency(minOrderValue)
-        : "không có điều kiện",
+      minOrderValue: minOrderValue ? formatCurrency(minOrderValue) : "0 VND",
     };
 
     return template(formattedData);
   };
+
+  const generateCode = (type, body) => {
+    const { discount, maxDiscount, minOrderValue } = body;
+    let code = type.toUpperCase();
+
+    if (type === "fixed") {
+      code += discount;
+    } else {
+      code += discount;
+      if (maxDiscount) {
+        code += `MAX${Math.round(maxDiscount / 1000)}K`;
+      }
+      if (minOrderValue) {
+        code += `MIN${Math.round(minOrderValue / 1000)}K`;
+      }
+    }
+
+    return code;
+  };
+
   const errors = validatePromotionFields(req.body.discountType, req.body);
   if (errors.length > 0) {
     return next(new AppError(errors.join(", "), 400));
@@ -240,6 +258,10 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
 
   if (!req.body.description) {
     req.body.description = generateDescription(req.body.discountType, req.body);
+  }
+
+  if (!req.body.code) {
+    req.body.code = generateCode(req.body.discountType, req.body);
   }
 
   const promotion = await Promotion.create(req.body);
@@ -254,7 +276,7 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
 
 exports.updatePromotion = catchAsync(async (req, res, next) => {
   checkSpellFields(
-    ["code", "startDate", "endDate", "maxUsage", "usageLimitPerUser"],
+    ["startDate", "endDate", "maxUsage", "usageLimitPerUser"],
     req.body
   );
 
@@ -276,15 +298,14 @@ exports.updatePromotion = catchAsync(async (req, res, next) => {
 });
 
 exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
-  const promotion = await Promotion.findByIdAndUpdate(
-    req.params.id,
-    { isActive: req.body.isActive },
-    { new: true, runValidators: true }
-  );
+  const promotion = await Promotion.findById(req.params.id);
 
   if (!promotion) {
     return next(new AppError("Promotion not found", 404));
   }
+
+  promotion.isActive = !promotion.isActive;
+  await promotion.save({ validateBeforeSave: false });
 
   res.status(200).json({
     status: "success",
