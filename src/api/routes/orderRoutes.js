@@ -1,14 +1,14 @@
 const express = require("express");
 const orderController = require("../controllers/orderController");
 const authController = require("../controllers/authController");
-
+const promotionController = require("../controllers/promotionsController");
 const router = express.Router({ mergeParams: true });
 
 router.use(authController.protect);
 
 router
   .route("/")
-  .get(orderController.getOrders)
+  .get(promotionController.checkPromotionCode, orderController.getOrders)
   .post(
     authController.restrictTo("staff", "client"),
     orderController.createOrder

@@ -29,10 +29,16 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     items.push(...order.items);
   }
 
+  let finalTotal = totalAmount;
+  if (req.promotion) {
+    finalTotal = req.finalTotal;
+  }
+
   res.status(200).json({
     success: "success",
     totalOrders: items.length,
     totalAmount: totalAmount,
+    finalTotal: finalTotal,
     data: items,
   });
 });

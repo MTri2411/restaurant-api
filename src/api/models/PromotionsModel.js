@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { validate } = require("./OrderModel");
 
 const promotionSchema = new mongoose.Schema(
   {
@@ -17,6 +18,19 @@ const promotionSchema = new mongoose.Schema(
     discount: {
       type: Number,
       required: [true, "A promotion must have a discount!"],
+      validate: {
+        validator: function (value) {
+          if (
+            this.discountType === "percentage" ||
+            this.discountType === "maxPercentage"
+          ) {
+            return value <= 100;
+          }
+          return true;
+        },
+        message:
+          "Discount cannot exceed 100% for percentage or maxPercentage types",
+      },
     },
     discountType: {
       type: String,
