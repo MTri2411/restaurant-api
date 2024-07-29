@@ -205,7 +205,9 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
 
     const templates = {
       fixed: `Giảm {{discount}} tất cả đơn hàng`,
-      percentage: `Giảm {{discount}}% đơn tối thiểu {{minOrderValue}}`,
+      percentage: minOrderValue
+        ? `Giảm {{discount}}% đơn tối thiểu {{minOrderValue}}`
+        : `Giảm {{discount}}% tất cả đơn hàng`,
       maxPercentage: `Giảm {{discount}}% giảm tối đa {{maxDiscount}} đơn tối thiểu {{minOrderValue}}`,
     };
 
@@ -223,10 +225,8 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
 
     const formattedData = {
       discount: type === "fixed" ? formatCurrency(discount) : discount,
-      maxDiscount: maxDiscount
-        ? formatCurrency(maxDiscount)
-        : "không có giới hạn",
-      minOrderValue: minOrderValue ? formatCurrency(minOrderValue) : "0 VND",
+      maxDiscount: maxDiscount ? formatCurrency(maxDiscount) : "",
+      minOrderValue: minOrderValue ? formatCurrency(minOrderValue) : "",
     };
 
     return template(formattedData);
