@@ -8,6 +8,14 @@ router
   .route("/zalopayment-callback")
   .post(paymentController.zaloPaymentCallback);
 
+router
+  .route("/payment-notification")
+  .get(paymentController.paymentNotification);
+
+router
+  .route("/payment-notification1")
+  .get(paymentController.paymentNotification1);
+
 router.use(authController.protect);
 
 router

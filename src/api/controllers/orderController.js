@@ -50,19 +50,18 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
   const { items } = req.body;
 
-  const amount = await items.reduce(async (accumulator, currentValue) => {
+  let amount = 0;
+
+  for (const item of items) {
     // Find the existing menu item
-    const existingMenuItem = await MenuItem.findOne({
-      _id: currentValue.menuItemId,
-    });
+    const existingMenuItem = await MenuItem.findOne({ _id: item.menuItemId });
 
     if (!existingMenuItem) {
       return next(new AppError("Menu item is not on the menu", 404));
     }
 
-    const currentMenuItem = await MenuItem.findById(currentValue.menuItemId);
-    return (await accumulator) + currentMenuItem.price * currentValue.quantity;
-  }, 0);
+    amount += existingMenuItem.price * item.quantity;
+  }
 
   // Find the existing order
   let existingOrder = await Order.findOne({
@@ -113,50 +112,39 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 });
 
 exports.updateStatusItem = catchAsync(async (req, res, next) => {
-  const { tableId, itemId } = req.params;
+  const { tableId, menuItemId } = req.params;
+  const { createdAt } = req.body;
+  const dateFromBody = new Date(createdAt);
 
-  // Find the existing order
-  let existingOrder = await Order.find(
+  await Order.updateOne(
     {
-      tableId,
-      paymentStatus: "unpaid",
+      tableId: tableId,
+      items: {
+        $elemMatch: {
+          menuItemId: menuItemId,
+          createdAt: dateFromBody,
+        },
+      },
     },
+    { $set: { "items.$[el].status": "finished" } },
     {
-      items: 1,
+      arrayFilters: [
+        {
+          "el.menuItemId": menuItemId,
+          "el.createdAt": dateFromBody,
+        },
+      ],
     }
   );
 
-  if (existingOrder.length === 0) {
-    return next(new AppError("No order found with this ID", 404));
-  }
-
-  // Find the existing item in order
-  let existingOrderItem;
-  existingOrder = existingOrder.filter((eachOrder) => {
-    const item = eachOrder.items.find((item) => item._id.toString() === itemId);
-
-    if (item) {
-      existingOrderItem = item;
-      return true;
-    }
-
-    return false;
-  });
-
-  if (!existingOrderItem) {
-    return next(new AppError("No item found with this ID", 404));
-  }
-
-  // Delete item in orders.items database
-  const updatedOrderItems = await Order.findByIdAndUpdate(
-    existingOrder[0]._id,
-    { "items.$[el].status": "finished" },
-    {
-      arrayFilters: [{ "el._id": itemId }],
-      new: true,
-      runValidators: true,
-    }
-  ).populate({
+  const updatedOrderItems = await Order.find({
+    items: {
+      $elemMatch: {
+        menuItemId: menuItemId,
+        createdAt: dateFromBody,
+      },
+    },
+  }).populate({
     path: "items.menuItemId",
     select: "price",
   });
