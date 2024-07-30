@@ -4,12 +4,10 @@ const Promotion = require("../models/PromotionsModel");
 const User = require("../models/UserModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
-const checkSpellFields = require("../utils/checkSpellFields");
 const axios = require("axios").default;
 const CryptoJS = require("crypto-js");
 const moment = require("moment");
 const mongoose = require("mongoose");
-const { options } = require("../routes/orderRoutes");
 
 const config = {
   app_id: "2554",
@@ -357,3 +355,13 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     data: transformedData,
   });
 });
+
+exports.paymentNotification = async (req, res, next) => {
+  res.sendFile(__basedir + "/index.html");
+};
+
+exports.paymentNotification1 = async (req, res, next) => {
+  const { msg } = req.query;
+  _io.emit("chat message", msg);
+  return res.json({ code: 200, msg });
+};

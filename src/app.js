@@ -24,6 +24,14 @@ const paymentRouter = require("./api/routes/paymentRoutes");
 //: ******* START EXPRESS APP *******
 const app = express();
 
+//: ******* SOCKET.IO INTEGRATION *******
+const server = require("http").Server(app);
+const io = require("socket.io")(server);
+const SocketServices = require("../src/api/services/socketServices");
+
+global.__basedir = __dirname;
+global._io = io;
+
 //: >>>>>>> START GLOBAL MIDDLEWARE >>>>>>>
 // 1) cors
 app.use(cors());
@@ -31,8 +39,8 @@ app.use(cors());
 // 2) Serving static files
 app.use(express.static(path.join(__dirname, "api/public")));
 
-// 3) helmet
-app.use(helmet());
+// // 3) helmet
+// app.use(helmet());
 
 // 4) Development logging
 if (process.env.NODE_ENV === "development") {
@@ -72,13 +80,15 @@ app.use("/v1/orders", orderRouter);
 app.use("/v1/payments", paymentRouter);
 app.use("/v1/promotions", promotionRouter);
 
+global._io.on("connection", SocketServices.connection);
+
 //: ******* ERROR HANDLING *******
 // 1) Handle unhandled routes
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-// Global error handling middleware
+//: ******* GLOBAL ERROR HANDLER *******
 app.use(globalErrorHandler);
 
-module.exports = app;
+module.exports = { server };

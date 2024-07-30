@@ -15,7 +15,7 @@ router
   );
 
 router
-  .route("/items/:itemId")
+  .route("/items/:menuItemId")
   .patch(
     authController.restrictTo("staff", "client"),
     orderController.updateStatusItem
