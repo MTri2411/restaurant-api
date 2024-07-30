@@ -115,6 +115,8 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
   const { tableId, menuItemId } = req.params;
   const { createdAt } = req.body;
   const dateFromBody = new Date(createdAt);
+  const dateStart = new Date(dateFromBody.getTime() - 3000);
+  const dateEnd = new Date(dateFromBody.getTime() + 3000);
 
   await Order.updateOne(
     {
@@ -122,7 +124,10 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
       items: {
         $elemMatch: {
           menuItemId: menuItemId,
-          createdAt: dateFromBody,
+          createdAt: {
+            $gte: dateStart,
+            $lt: dateEnd,
+          },
         },
       },
     },
@@ -131,7 +136,10 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
       arrayFilters: [
         {
           "el.menuItemId": menuItemId,
-          "el.createdAt": dateFromBody,
+          "el.createdAt": {
+            $gte: dateStart,
+            $lt: dateEnd,
+          },
         },
       ],
     }
@@ -141,7 +149,10 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
     items: {
       $elemMatch: {
         menuItemId: menuItemId,
-        createdAt: dateFromBody,
+        createdAt: {
+          $gte: dateStart,
+          $lt: dateEnd,
+        },
       },
     },
   }).populate({

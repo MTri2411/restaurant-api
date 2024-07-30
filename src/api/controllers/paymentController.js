@@ -209,6 +209,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
 
 exports.cashPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
+  const { paymentMethod } = req.body;
 
   const totalAmount = orders.reduce((accumulator, order) => {
     return (
@@ -237,7 +238,7 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       userId: req.user._id,
       amount: finalTotal,
       voucher: promotion ? promotion.code : undefined,
-      paymentMethod: "Cash",
+      paymentMethod: paymentMethod,
       appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
         Math.random() * 1000000
       )}`,
