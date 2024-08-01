@@ -254,7 +254,6 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
 
     await session.commitTransaction();
     session.endSession();
-
     res.status(200).json({
       status: "success",
       data: payment,

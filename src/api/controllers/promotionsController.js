@@ -22,6 +22,7 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const userId = req.query.userId ? req.user._id : undefined;
 
   if (!promotionCode) {
+    req.promotionError = "No promotion code provided";
     return next();
   }
 
@@ -33,24 +34,26 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   });
 
   if (!promotion) {
-    return next(new AppError("Invalid or expired promotion code", 400));
+    const expiredPromotion = await Promotion.findOne({ code: promotionCode });
+    req.promotionError = expiredPromotion
+      ? `Invalid promotion code. Expiry date: ${expiredPromotion.endDate.toISOString()}, Status: ${
+          expiredPromotion.isActive ? "Active" : "Inactive"
+        }`
+      : "Invalid promotion code.";
+    return next();
   }
 
   if (promotion.maxUsage && promotion.usedCount >= promotion.maxUsage) {
-    return next(
-      new AppError("Promotion code has reached its maximum usage", 400)
-    );
+    req.promotionError = "Promotion code has reached its usage limit";
+    return next();
   }
 
-  let orders;
-  if (userId) {
-    orders = await Order.find({ tableId: tableId, userId: userId });
-  } else {
-    orders = await Order.find({ tableId: tableId });
-  }
+  const orderQuery = userId ? { tableId, userId } : { tableId };
+  const orders = await Order.find(orderQuery);
 
   if (!orders.length) {
-    return next(new AppError("No orders found for this table", 404));
+    req.promotionError = "No orders found for this table";
+    return next();
   }
 
   if (promotion.usageLimitPerUser) {
@@ -61,28 +64,22 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     });
 
     if (userUsage >= promotion.usageLimitPerUser) {
-      return next(
-        new AppError("Promotion code has reached its usage limit per user", 400)
-      );
+      req.promotionError =
+        "Promotion code has reached its usage limit per user";
+      return next();
     }
   }
 
-  let totalAmount = orders.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalAmount = orders.reduce((acc, order) => acc + order.amount, 0);
 
   if (promotion.minOrderValue && totalAmount < promotion.minOrderValue) {
-    return next(
-      new AppError(
-        `The order value must be at least ${promotion.minOrderValue} to apply this promotion.`,
-        400
-      )
-    );
+    req.promotionError = `Minimum order value for this promotion is ${promotion.minOrderValue}`;
+    return next();
   }
 
   const finalTotal = calculateDiscount(totalAmount, promotion);
-
   Object.assign(req, { promotion, finalTotal });
-  console.log(req.promotion);
-  console.log(req.finalTotal);
+
   next();
 });
 
@@ -335,15 +332,5 @@ exports.resetAllPromotions = catchAsync(async (req, res, next) => {
 });
 
 exports.deletePromotion = catchAsync(async (req, res, next) => {
-  const promotion = await Promotion.findByIdAndDelete(req.params.id);
-
-  if (!promotion) {
-    return next(new AppError("Promotion not found", 404));
-  }
-
-  res.status(200).json({
-    status: "success",
-    message: "Promotion deleted",
-    data: null,
-  });
+  // Nếu promotion đã được sử dụng thì không thể xóa
 });

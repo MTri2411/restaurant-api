@@ -39,6 +39,7 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     totalOrders: items.length,
     totalAmount: finalTotal,
     discountAmount: totalAmount - finalTotal,
+    promotionError: req.promotionError,
     data: items,
   });
 });
