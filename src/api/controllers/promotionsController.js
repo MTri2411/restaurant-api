@@ -10,7 +10,9 @@ const cron = require("node-cron");
 async function updatePromotionStatus() {
   const now = new Date();
   await Promotion.updateMany(
-    { endDate: { $lt: now }, isActive: true },
+    {
+      $or: [{ endDate: { $lt: now } }, { maxUsage: { $lte: "$usedCount" } }],
+    },
     { isActive: false }
   );
 }
@@ -301,6 +303,24 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
     return next(new AppError("Promotion not found", 404));
   }
 
+  if (promotion.endDate < new Date()) {
+    return next(
+      new AppError(
+        `Promotion has expired on ${promotion.endDate.toISOString()}. Please update the end date`,
+        400
+      )
+    );
+  }
+
+  if (promotion.maxUsage <= promotion.usedCount) {
+    return next(
+      new AppError(
+        `Promotion has reached its usage limit of ${promotion.maxUsage}. Please update the maxUsage`,
+        400
+      )
+    );
+  }
+
   promotion.isActive = !promotion.isActive;
   await promotion.save({ validateBeforeSave: false });
 
@@ -314,23 +334,48 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
 
 exports.resetAllPromotions = catchAsync(async (req, res, next) => {
   const now = new Date();
-  const startDate = new Date(now.setHours(0, 0, 0, 0));
-  const endDate = new Date(startDate);
-  endDate.setMonth(endDate.getMonth() + 1);
-  endDate.setHours(23, 59, 59, 999);
 
-  const result = await Promotion.updateMany(
-    { startDate: { $lte: endDate }, endDate: { $gte: startDate } },
-    { usedCount: 0, startDate, endDate }
-  );
+  const expiredPromotions = await Promotion.find({
+    endDate: { $lt: now },
+    $expr: { $eq: ["$usedCount", "$maxUsage"] },
+  });
+
+  const updates = expiredPromotions.map((promotion) => {
+    const newEndDate = new Date(promotion.startDate);
+    newEndDate.setDate(newEndDate.getDate() + 7);
+    newEndDate.setHours(23, 59, 59, 999);
+
+    return Promotion.updateOne(
+      { _id: promotion._id },
+      {
+        $set: { endDate: newEndDate },
+        $inc: { maxUsage: 10 },
+      }
+    );
+  });
+
+  await Promise.all(updates);
 
   res.status(200).json({
     status: "success",
-    message: "Promotion usage has been reset and dates updated",
-    data: result,
+    message: "Expired promotions have been extended and maxUsage increased",
+    data: expiredPromotions,
   });
 });
 
 exports.deletePromotion = catchAsync(async (req, res, next) => {
-  // Nếu promotion đã được sử dụng thì không thể xóa
+  const promotion = await Promotion.findById(req.params.id);
+  if (promotion.usedCount > 0) {
+    return next(
+      new AppError("Promotion has been used. Cannot delete this promotion", 400)
+    );
+  }
+
+  await Promotion.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({
+    status: "success",
+    message: "Promotion deleted successfully",
+    data: null,
+  });
 });

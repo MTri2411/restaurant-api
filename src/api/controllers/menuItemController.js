@@ -49,8 +49,7 @@ exports.getMenuItemsByCategoryId = catchAsync(async (req, res, next) => {
       category_id: categoryId,
     },
     projection
-  )
-    .populate({ path: "options", select: "name image_url" })
+  ).populate({ path: "options", select: "name image_url" });
 
   res.status(200).json({
     success: "success",

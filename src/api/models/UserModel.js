@@ -60,11 +60,6 @@ const userSchema = new Schema({
     default: 0,
   },
 
-  // promotion: {
-  //   type: Schema.Types.ObjectId,
-  //   ref: "Promotion",
-  // },
-
   passwordChangedAt: Date,
 
   passwordResetToken: String,

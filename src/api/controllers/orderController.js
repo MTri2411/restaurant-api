@@ -29,10 +29,7 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     items.push(...order.items);
   }
 
-  let finalTotal = totalAmount;
-  if (req.promotion) {
-    finalTotal = req.finalTotal;
-  }
+  const finalTotal = req.promotion ? req.finalTotal : totalAmount;
 
   res.status(200).json({
     success: "success",
@@ -40,6 +37,7 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     totalAmount: finalTotal,
     discountAmount: totalAmount - finalTotal,
     promotionError: req.promotionError,
+    voucherCode: req.promotion ? req.promotion.code : undefined,
     data: items,
   });
 });

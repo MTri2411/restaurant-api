@@ -247,16 +247,16 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     if (promotion) {
       await Promotion.findByIdAndUpdate(
         promotion._id,
-        { $inc: { usageCount: 1 } },
+        { $inc: { usedCount: 1 } },
         { session }
       );
     }
-
     await session.commitTransaction();
     session.endSession();
     res.status(200).json({
       status: "success",
       data: payment,
+      promotionError: req.promotionError,
     });
   } catch (error) {
     await session.abortTransaction();
