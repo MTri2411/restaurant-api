@@ -255,10 +255,6 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
       (req.body[key] == null || req.body[key] === "") && delete req.body[key]
   );
 
-  req.body.usedCount = 0;
-  req.body.isActive = true;
-
-  console.log(req.body);
   const promotion = await Promotion.create(req.body);
 
   res.status(201).json({
@@ -367,7 +363,7 @@ exports.resetAllPromotions = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    message: "Expired promotions have been updated",
+    message: "Updated promotions successfully",
     data: expiredPromotions,
   });
 });
