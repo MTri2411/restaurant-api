@@ -55,27 +55,13 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   }
 
   const orderQuery = userId ? { tableId, userId } : { tableId };
-  const orders = await Order.find(orderQuery);
+
+  const orders = await Order.find({ ...orderQuery, paymentStatus: "unpaid" });
 
   if (!orders.length) {
     req.promotionError = "No orders found for this table";
     return next();
   }
-
-  if (promotion.usageLimitPerUser) {
-    const userIds = orders.map((order) => order.userId);
-    const userUsage = await Order.countDocuments({
-      userId: { $in: userIds },
-      promotion: promotion._id,
-    });
-
-    if (userUsage >= promotion.usageLimitPerUser) {
-      req.promotionError =
-        "Promotion code has reached its usage limit per user";
-      return next();
-    }
-  }
-
   const totalAmount = orders.reduce((acc, order) => acc + order.amount, 0);
 
   if (promotion.minOrderValue && totalAmount < promotion.minOrderValue) {
@@ -346,29 +332,42 @@ exports.resetAllPromotions = catchAsync(async (req, res, next) => {
   const now = new Date();
 
   const expiredPromotions = await Promotion.find({
-    endDate: { $lt: now },
-    $expr: { $eq: ["$usedCount", "$maxUsage"] },
+    $or: [
+      { endDate: { $lt: now } },
+      { $expr: { $eq: ["$usedCount", "$maxUsage"] } },
+    ],
   });
 
-  const updates = expiredPromotions.map((promotion) => {
-    const newEndDate = new Date(promotion.startDate);
-    newEndDate.setDate(newEndDate.getDate() + 7);
-    newEndDate.setHours(23, 59, 59, 999);
+  if (expiredPromotions.length === 0) {
+    return next(new AppError("No promotions to reset", 404));
+  }
 
-    return Promotion.updateOne(
-      { _id: promotion._id },
-      {
-        $set: { endDate: newEndDate },
-        $inc: { maxUsage: 10 },
-      }
-    );
+  const updates = expiredPromotions.map((promotion) => {
+    const updateFields = {};
+    const newEndDate = new Date();
+
+    if (promotion.endDate < now) {
+      newEndDate.setDate(newEndDate.getDate() + 7);
+      newEndDate.setHours(23, 59, 59, 999);
+      updateFields.endDate = newEndDate;
+    }
+
+    if (promotion.usedCount === promotion.maxUsage) {
+      updateFields.maxUsage = promotion.maxUsage + 10;
+    }
+
+    if (promotion.endDate < now && promotion.usedCount === promotion.maxUsage) {
+      updateFields.isActive = true;
+    }
+
+    return Promotion.updateOne({ _id: promotion._id }, { $set: updateFields });
   });
 
   await Promise.all(updates);
 
   res.status(200).json({
     status: "success",
-    message: "Expired promotions have been extended and maxUsage increased",
+    message: "Expired promotions have been updated",
     data: expiredPromotions,
   });
 });

@@ -29,6 +29,8 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     items.push(...order.items);
   }
 
+  console.log(totalAmount);
+
   const finalTotal = req.promotion ? req.finalTotal : totalAmount;
 
   res.status(200).json({
