@@ -6,25 +6,29 @@ const checkSpellFields = require("../utils/checkSpellFields");
 const mongoose = require("mongoose");
 const Handlebars = require("handlebars");
 const cron = require("node-cron");
+const moment = require("moment-timezone");
 
 async function updatePromotionStatus() {
-  const now = new Date();
+  const now = moment.tz("Asia/Ho_Chi_Minh").toDate();
   await Promotion.updateMany(
     {
-      $or: [{ endDate: { $lt: now } }, { maxUsage: { $lte: "$usedCount" } }],
+      $or: [
+        { endDate: { $lt: now } },
+        { $expr: { $lte: ["$maxUsage", "$usedCount"] } },
+      ],
     },
     { isActive: false }
   );
 }
+
 cron.schedule("0 0 * * *", updatePromotionStatus);
 
 exports.checkPromotionCode = catchAsync(async (req, res, next) => {
-  const { promotionCode } = req.body;
+  const promotionCode = req.query.promotionCode || req.body.promotionCode;
   const { tableId } = req.params;
   const userId = req.query.userId ? req.user._id : undefined;
 
   if (!promotionCode) {
-    req.promotionError = "No promotion code provided";
     return next();
   }
 
@@ -123,11 +127,11 @@ exports.getPromotions = catchAsync(async (req, res, next) => {
 });
 
 exports.getPromotion = catchAsync(async (req, res, next) => {
-  let query;
-  if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-    query = { _id: req.params.id };
-  } else {
-    query = { code: req.params.id };
+  let query = {};
+  if (req.params.id) {
+    query._id = req.params.id;
+  } else if (req.query.code) {
+    query.code = req.query.code;
   }
 
   const promotion = await Promotion.findOne(query);
@@ -158,50 +162,49 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
 
   checkSpellFields(requiredFields, req.body);
 
-  const validatePromotionFields = (type, body) => {
+  const validatePromotionFields = ({
+    discountType,
+    discount,
+    maxDiscount,
+    minOrderValue,
+  }) => {
     const errors = [];
-    const { discount, maxDiscount, minOrderValue } = body;
 
-    switch (type) {
-      case "maxPercentage":
-        if (!maxDiscount || !minOrderValue) {
-          errors.push(
-            "A maxPercentage promotion must have maxDiscount and minOrderValue fields"
-          );
-        }
-        if (discount >= 100) {
-          errors.push("Discount cannot exceed 100% for maxPercentage type");
-        }
-        break;
-      case "percentage":
-        if (maxDiscount) {
-          errors.push(
-            "A percentage promotion should not have maxDiscount field"
-          );
-        }
-        if (discount >= 100) {
-          errors.push("Discount cannot exceed 100% for percentage type");
-        }
-        break;
-      case "fixed":
-        if (!discount) {
-          errors.push(`A ${type} promotion must have a discount field`);
-        }
-        if (maxDiscount || minOrderValue) {
-          errors.push(
-            `A ${type} promotion should not have maxDiscount or minOrderValue fields`
-          );
-        }
-        break;
-      default:
-        errors.push("Invalid discount type");
+    if (discount >= 100 && discountType !== "fixed") {
+      errors.push(
+        "Discount cannot exceed 100% for percentage or maxPercentage type"
+      );
     }
+
+    if (discountType === "maxPercentage") {
+      if (!maxDiscount || !minOrderValue) {
+        errors.push(
+          "A maxPercentage promotion must have maxDiscount and minOrderValue fields"
+        );
+      }
+    } else if (discountType === "percentage") {
+      if (maxDiscount) {
+        errors.push("A percentage promotion should not have maxDiscount field");
+      }
+    } else if (discountType === "fixed") {
+      if (maxDiscount || minOrderValue) {
+        errors.push(
+          "A fixed promotion should not have maxDiscount or minOrderValue fields"
+        );
+      }
+    } else {
+      errors.push("Invalid discount type");
+    }
+
     return errors;
   };
 
-  const generateDescription = (type, body) => {
-    const { discount, maxDiscount, minOrderValue } = body;
-
+  const generateDescription = ({
+    discountType,
+    discount,
+    maxDiscount,
+    minOrderValue,
+  }) => {
     const templates = {
       fixed: `Giảm {{discount}} tất cả đơn hàng`,
       percentage: minOrderValue
@@ -210,20 +213,19 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
       maxPercentage: `Giảm {{discount}}% giảm tối đa {{maxDiscount}} đơn tối thiểu {{minOrderValue}}`,
     };
 
-    const template = Handlebars.compile(templates[type]);
+    const template = Handlebars.compile(templates[discountType]);
 
-    const formatCurrency = (value) => {
-      return new Intl.NumberFormat("vi-VN", {
+    const formatCurrency = (value) =>
+      new Intl.NumberFormat("vi-VN", {
         style: "currency",
         currency: "VND",
         currencyDisplay: "code",
       })
         .format(value)
         .replace("VND", "VND");
-    };
 
     const formattedData = {
-      discount: type === "fixed" ? formatCurrency(discount) : discount,
+      discount: discountType === "fixed" ? formatCurrency(discount) : discount,
       maxDiscount: maxDiscount ? formatCurrency(maxDiscount) : "",
       minOrderValue: minOrderValue ? formatCurrency(minOrderValue) : "",
     };
@@ -231,38 +233,46 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
     return template(formattedData);
   };
 
-  const generateCode = (type, body) => {
-    const { discount, maxDiscount, minOrderValue } = body;
-    let code = type.toUpperCase();
+  const generateCode = ({
+    discountType,
+    discount,
+    maxDiscount,
+    minOrderValue,
+  }) => {
+    let code = discountType.toUpperCase() + discount;
 
-    if (type === "fixed") {
-      code += discount;
-    } else {
-      code += discount;
-      if (maxDiscount) {
-        code += `MAX${Math.round(maxDiscount / 1000)}K`;
-      }
-      if (minOrderValue) {
-        code += `MIN${Math.round(minOrderValue / 1000)}K`;
-      }
+    if (maxDiscount) {
+      code += `MAX${Math.round(maxDiscount / 1000)}K`;
+    }
+    if (minOrderValue) {
+      code += `MIN${Math.round(minOrderValue / 1000)}K`;
     }
 
     return code;
   };
 
-  const errors = validatePromotionFields(req.body.discountType, req.body);
+  const errors = validatePromotionFields(req.body);
   if (errors.length > 0) {
     return next(new AppError(errors.join(", "), 400));
   }
 
   if (!req.body.description) {
-    req.body.description = generateDescription(req.body.discountType, req.body);
+    req.body.description = generateDescription(req.body);
   }
 
   if (!req.body.code) {
-    req.body.code = generateCode(req.body.discountType, req.body);
+    req.body.code = generateCode(req.body);
   }
 
+  Object.keys(req.body).forEach(
+    (key) =>
+      (req.body[key] == null || req.body[key] === "") && delete req.body[key]
+  );
+
+  req.body.usedCount = 0;
+  req.body.isActive = true;
+
+  console.log(req.body);
   const promotion = await Promotion.create(req.body);
 
   res.status(201).json({

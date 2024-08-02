@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { validate } = require("./OrderModel");
+const moment = require("moment");
 
 const promotionSchema = new mongoose.Schema(
   {
@@ -67,9 +67,7 @@ const promotionSchema = new mongoose.Schema(
       type: Date,
       required: [true, "A promotion must have a start date!"],
       default: function () {
-        const now = new Date();
-        now.setUTCHours(0, 0, 0, 0);
-        return now;
+        return moment.tz("Asia/Ho_Chi_Minh").add(1, "days").startOf("day").toDate();
       },
     },
 
@@ -77,9 +75,7 @@ const promotionSchema = new mongoose.Schema(
       type: Date,
       required: [true, "A promotion must have an end date!"],
       default: function () {
-        const now = new Date();
-        now.setUTCHours(23, 59, 59, 999);
-        return now;
+        return moment.tz("Asia/Ho_Chi_Minh").add(1, "days").endOf("day").toDate();
       },
     },
     isActive: {
