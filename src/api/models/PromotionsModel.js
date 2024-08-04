@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const moment = require("moment-timezone");
 const { validate } = require("./OrderModel");
 
 const promotionSchema = new mongoose.Schema(
@@ -67,9 +68,7 @@ const promotionSchema = new mongoose.Schema(
       type: Date,
       required: [true, "A promotion must have a start date!"],
       default: function () {
-        const now = new Date();
-        now.setUTCHours(0, 0, 0, 0);
-        return now;
+        return moment.tz("Asia/Ho_Chi_Minh").startOf("day").toDate();
       },
     },
 
@@ -77,11 +76,10 @@ const promotionSchema = new mongoose.Schema(
       type: Date,
       required: [true, "A promotion must have an end date!"],
       default: function () {
-        const now = new Date();
-        now.setUTCHours(23, 59, 59, 999);
-        return now;
+        return moment.tz("Asia/Ho_Chi_Minh").endOf("day").toDate();
       },
     },
+
     isActive: {
       type: Boolean,
       default: true,
@@ -98,6 +96,7 @@ promotionSchema.pre("save", function (next) {
   }
   next();
 });
+
 
 promotionSchema.pre("findByIdAndUpdate", function (next) {
   const update = this.getUpdate();
