@@ -69,6 +69,13 @@ const menuItemSchema = new mongoose.Schema(
       ref: "categories",
       required: [true, "Category id is required!"],
     },
+
+    // reviews: [
+    //   {
+    //     type: mongoose.Schema.ObjectId,
+    //     ref: "Reviews",
+    //   },
+    // ],
   },
   {
     timestamps: true,

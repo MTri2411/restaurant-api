@@ -66,19 +66,6 @@ const userSchema = new Schema({
 
   passwordResetExpires: Date,
 
-  violations: {
-    vaviolation_type: {
-      type: String,
-      enum: ["inappropriate", "spam", "harassment", "other"],
-    },
-    violation_description: {
-      type: String,
-    },
-    violation_date: {
-      type: Date,
-      default: Date.now,
-    },
-  },
 });
 
 userSchema.pre("save", async function (next) {

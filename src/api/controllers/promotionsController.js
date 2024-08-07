@@ -1,5 +1,6 @@
 const Promotion = require("../models/PromotionsModel");
 const Order = require("../models/OrderModel");
+const Payment = require("../models/PaymentModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -255,6 +256,10 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
       (req.body[key] == null || req.body[key] === "") && delete req.body[key]
   );
 
+  req.body.usedCount = 0;
+  req.body.isActive = true;
+
+  console.log(req.body);
   const promotion = await Promotion.create(req.body);
 
   res.status(201).json({
@@ -363,7 +368,7 @@ exports.resetAllPromotions = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    message: "Updated promotions successfully",
+    message: "Expired promotions have been updated",
     data: expiredPromotions,
   });
 });
@@ -373,6 +378,16 @@ exports.deletePromotion = catchAsync(async (req, res, next) => {
   if (promotion.usedCount > 0) {
     return next(
       new AppError("Promotion has been used. Cannot delete this promotion", 400)
+    );
+  }
+
+  const payment = await Payment.findOne({ voucher: promotion.code });
+  if (payment) {
+    return next(
+      new AppError(
+        "Promotion has been used in a payment. Cannot delete this promotion",
+        400
+      )
     );
   }
 
