@@ -32,4 +32,5 @@ router
     menuItemController.deleteMenuItem
   );
 
+router.get("/menu-items-reviewed", menuItemController.getMenuItemsWithReviews);
 module.exports = router;
