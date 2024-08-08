@@ -144,9 +144,9 @@ exports.getOrderStatistics = catchAsync(async (req, res, next) => {
   });
 });
 
-// Doanh thu theo từng bàn
+// Doanh thu theo từng bàn theo ngày/tuần/tháng/năm
 exports.getRevenueByTable = catchAsync(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { type, startDate, endDate } = req.query;
 
   let matchCondition = {};
   if (startDate && endDate) {
@@ -155,6 +155,16 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
       $lte: new Date(endDate),
     };
   }
+
+  const groupBy = {
+    _id: {
+      tableId: "$order.tableId",
+      timePeriod: formatGroupBy(type),
+    },
+    tableNumber: { $first: "$table.tableNumber" },
+    totalRevenue: { $sum: "$amount" },
+    totalOrders: { $sum: 1 },
+  };
 
   const stats = await Payment.aggregate([
     { $match: matchCondition },
@@ -176,15 +186,18 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
       },
     },
     { $unwind: "$table" },
+    { $group: groupBy },
     {
-      $group: {
-        _id: "$order.tableId",
-        tableNumber: { $first: "$table.tableNumber" },
-        totalRevenue: { $sum: "$amount" },
-        totalOrders: { $sum: 1 },
+      $project: {
+        _id: 0,
+        tableId: "$_id.tableId",
+        tableNumber: 1,
+        timePeriod: "$_id.timePeriod",
+        totalRevenue: 1,
+        totalOrders: 1,
       },
     },
-    { $sort: { totalRevenue: -1 } },
+    { $sort: { timePeriod: 1, tableId: 1 } },
   ]);
 
   res.status(200).json({
@@ -193,9 +206,9 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
   });
 });
 
-// Doanh thu theo phương thức thanh toán
+// Doanh thu theo phương thức thanh toán theo ngày/tuần/tháng/năm
 exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { type, startDate, endDate } = req.query;
 
   let matchCondition = {};
   if (startDate && endDate) {
@@ -206,63 +219,27 @@ exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
   }
 
   const groupBy = {
-    _id: "$paymentMethod",
+    _id: {
+      paymentMethod: "$paymentMethod",
+      timePeriod: formatGroupBy(type),
+    },
     totalRevenue: { $sum: "$amount" },
     totalOrders: { $sum: 1 },
   };
 
-  const stats = await getStatistics(
-    Payment,
-    matchCondition,
-    groupBy,
-    null,
-    "_id"
-  );
-
-  res.status(200).json({
-    status: "success",
-    data: stats,
-  });
-});
-
-// Số lượng món ăn đã bán
-exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
-
-  let matchCondition = {};
-  if (startDate && endDate) {
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate),
-    };
-  }
-
-  const groupBy = {
-    _id: "$items.menuItemId",
-    totalQuantity: { $sum: "$items.quantity" },
-  };
-
-  const projectFields = {
-    _id: "$_id",
-    name: "$menuItem.name",
-    totalQuantity: "$totalQuantity",
-  };
-
-  const stats = await Order.aggregate([
+  const stats = await Payment.aggregate([
     { $match: matchCondition },
-    { $unwind: "$items" },
     { $group: groupBy },
     {
-      $lookup: {
-        from: "menuitems",
-        localField: "_id",
-        foreignField: "_id",
-        as: "menuItem",
+      $project: {
+        _id: 0,
+        paymentMethod: "$_id.paymentMethod",
+        timePeriod: "$_id.timePeriod",
+        totalRevenue: "$totalRevenue",
+        totalOrders: "$totalOrders",
       },
     },
-    { $unwind: "$menuItem" },
-    { $project: projectFields },
-    { $sort: { totalQuantity: -1 } },
+    { $sort: { timePeriod: 1, paymentMethod: 1 } },
   ]);
 
   res.status(200).json({
@@ -271,9 +248,9 @@ exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
   });
 });
 
-// Top 5 Món ăn bán chạy nhất
-exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+// Số lượng món ăn được đặt theo ngày/tuần/tháng/năm
+exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
+  const { type, startDate, endDate } = req.query;
 
   let matchCondition = {};
   if (startDate && endDate) {
@@ -284,13 +261,67 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
   }
 
   const groupBy = {
-    _id: "$items.menuItemId",
+    _id: {
+      timePeriod: formatGroupBy(type),
+      menuItemId: "$items.menuItemId",
+    },
+    totalQuantity: { $sum: "$items.quantity" },
+  };
+
+  const stats = await Order.aggregate([
+    { $match: matchCondition },
+    { $unwind: "$items" },
+    { $group: groupBy },
+    {
+      $lookup: {
+        from: "menuitems",
+        localField: "_id.menuItemId",
+        foreignField: "_id",
+        as: "menuItem",
+      },
+    },
+    { $unwind: "$menuItem" },
+    {
+      $project: {
+        _id: 0,
+        timePeriod: "$_id.timePeriod",
+        menuItemId: "$_id.menuItemId",
+        totalQuantity: "$totalQuantity",
+        name: "$menuItem.name",
+      },
+    },
+    { $sort: { timePeriod: 1, totalQuantity: -1 } },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: stats,
+  });
+});
+
+// Top 5 Món ăn bán chạy nhất theo ngày/tuần/tháng/năm
+exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
+  const { type, startDate, endDate } = req.query;
+
+  let matchCondition = {};
+  if (startDate && endDate) {
+    matchCondition.createdAt = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate),
+    };
+  }
+
+  const groupBy = {
+    _id: {
+      timePeriod: formatGroupBy(type),
+      menuItemId: "$items.menuItemId",
+    },
     totalQuantity: { $sum: "$items.quantity" },
   };
 
   const projectFields = {
-    _id: "$_id",
-    name: "$menuItem.name",
+    _id: "$_id.menuItemId",
+    timePeriod: "$_id.timePeriod",
     totalQuantity: "$totalQuantity",
   };
 
@@ -301,14 +332,22 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
     {
       $lookup: {
         from: "menuitems",
-        localField: "_id",
+        localField: "_id.menuItemId",
         foreignField: "_id",
         as: "menuItem",
       },
     },
     { $unwind: "$menuItem" },
-    { $project: projectFields },
-    { $sort: { totalQuantity: -1 } },
+    {
+      $project: {
+        _id: 0,
+        timePeriod: "$_id.timePeriod",
+        menuItemId: "$_id.menuItemId",
+        totalQuantity: "$totalQuantity",
+        name: "$menuItem.name",
+      },
+    },
+    { $sort: { timePeriod: 1, totalQuantity: -1 } },
     { $limit: 5 },
   ]);
 
@@ -319,58 +358,14 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
 });
 
 // Hiệu quả của mã khuyến mãi
-exports.getPromotionStatistics = catchAsync(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
-
-  let matchCondition = {};
-  if (startDate && endDate) {
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate),
-    };
-  }
-
-  const groupBy = {
-    _id: "$promotionId",
-    totalAmount: { $sum: "$amount" },
-    totalOrders: { $sum: 1 },
-  };
-
-  const projectFields = {
-    _id: "$_id",
-    code: "$promotion.code",
-    totalAmount: "$totalAmount",
-    totalOrders: "$totalOrders",
-  };
-
-  const stats = await Payment.aggregate([
-    { $match: matchCondition },
-    { $group: groupBy },
-    {
-      $lookup: {
-        from: "promotions",
-        localField: "_id",
-        foreignField: "_id",
-        as: "promotion",
-      },
-    },
-    { $unwind: "$promotion" },
-    { $project: projectFields },
-    { $sort: { totalAmount: -1 } },
-  ]);
-
-  res.status(200).json({
-    status: "success",
-    data: stats,
-  });
-});
+exports.getPromotionStatistics = catchAsync(async (req, res, next) => {});
 
 // Số lượng mã khuyến mãi sử dụng
 exports.getPromotionUsageStatistics = catchAsync(async (req, res, next) => {});
 
-// Top 5 khách hàng có giá trị cao nhất
+// Top 5 khách hàng có giá trị cao nhất theo ngày/tuần/tháng/năm
 exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { type, startDate, endDate } = req.query;
 
   let matchCondition = {};
   if (startDate && endDate) {
@@ -381,17 +376,17 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
   }
 
   const groupBy = {
-    _id: "$userId",
+    _id: {
+      timePeriod: formatGroupBy(type),
+      userId: "$userId",
+    },
     totalAmount: { $sum: "$amount" },
-    totalOrders: { $sum: 1 },
   };
 
   const projectFields = {
-    _id: "$_id",
-    name: "$user.name",
-    email: "$user.email",
+    _id: "$_id.userId",
+    timePeriod: "$_id.timePeriod",
     totalAmount: "$totalAmount",
-    totalOrders: "$totalOrders",
   };
 
   const stats = await Payment.aggregate([
@@ -400,14 +395,22 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
     {
       $lookup: {
         from: "users",
-        localField: "_id",
+        localField: "_id.userId",
         foreignField: "_id",
         as: "user",
       },
     },
     { $unwind: "$user" },
-    { $project: projectFields },
-    { $sort: { totalAmount: -1 } },
+    {
+      $project: {
+        _id: 0,
+        timePeriod: "$_id.timePeriod",
+        userId: "$_id.userId",
+        totalAmount: "$totalAmount",
+        name: "$user.fullName",
+      },
+    },
+    { $sort: { timePeriod: 1, totalAmount: -1 } },
     { $limit: 5 },
   ]);
 
