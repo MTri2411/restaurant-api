@@ -156,12 +156,6 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
     };
   }
 
-  const groupBy = {
-    _id: "$order.tableId",
-    totalRevenue: { $sum: "$amount" },
-    totalOrders: { $sum: 1 },
-  };
-
   const stats = await Payment.aggregate([
     { $match: matchCondition },
     {
@@ -173,7 +167,23 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
       },
     },
     { $unwind: "$order" },
-    { $group: groupBy },
+    {
+      $lookup: {
+        from: "tables",
+        localField: "order.tableId",
+        foreignField: "_id",
+        as: "table",
+      },
+    },
+    { $unwind: "$table" },
+    {
+      $group: {
+        _id: "$order.tableId",
+        tableNumber: { $first: "$table.tableNumber" },
+        totalRevenue: { $sum: "$amount" },
+        totalOrders: { $sum: 1 },
+      },
+    },
     { $sort: { totalRevenue: -1 } },
   ]);
 
