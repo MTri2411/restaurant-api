@@ -65,7 +65,6 @@ const userSchema = new Schema({
   passwordResetToken: String,
 
   passwordResetExpires: Date,
-
 });
 
 userSchema.pre("save", async function (next) {
