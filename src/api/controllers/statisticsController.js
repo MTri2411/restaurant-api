@@ -46,12 +46,14 @@ exports.getRevenueStatistics = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
-
   const groupBy = {
     _id: formatGroupBy(type),
     totalRevenue: { $sum: "$amount" },
@@ -78,9 +80,12 @@ exports.getAverageOrderValue = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
@@ -96,7 +101,7 @@ exports.getAverageOrderValue = catchAsync(async (req, res, next) => {
     totalOrders: "$totalOrders",
     averageOrderValue: {
       $round: [{ $divide: ["$totalRevenue", "$totalOrders"] }, 2],
-    }, // Làm tròn đến 2 chữ số thập phân
+    },
   };
 
   const stats = await getStatistics(
@@ -119,9 +124,12 @@ exports.getOrderStatistics = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
@@ -150,9 +158,12 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
@@ -212,9 +223,12 @@ exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
@@ -254,9 +268,12 @@ exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
@@ -305,9 +322,12 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
@@ -369,9 +389,12 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
 
   let matchCondition = {};
   if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
     matchCondition.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate),
+      $lt: adjustedEndDate,
     };
   }
 
