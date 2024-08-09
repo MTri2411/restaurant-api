@@ -73,7 +73,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 });
 
 exports.login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, FCMToken } = req.body;
   const user = await User.findOne({ email });
 
   if (!user || !(await user.correctPassword(password, user.password))) {
@@ -83,6 +83,12 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!user.isVerified) {
     return next(new AppError("Please verify your email!", 401));
   }
+
+  if (FCMToken) {
+    user.FCMTokens.push(FCMToken);
+    await user.save();
+  }
+
   const token = signToken(user._id);
   res.status(200).json({
     status: "success",
@@ -90,6 +96,21 @@ exports.login = catchAsync(async (req, res, next) => {
     data: {
       token,
     },
+  });
+});
+
+exports.logout = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+  user.FCMTokens = user.FCMTokens.filter(
+    (token) => token !== req.body.FCMToken
+  );
+  await user.save();
+  res.status(200).json({
+    status: "success",
+    message: "Logout successful!",
   });
 });
 
@@ -241,5 +262,3 @@ exports.deleteUserById = catchAsync(async (req, res, next) => {
     message: "User deleted successfully!",
   });
 });
-
-
