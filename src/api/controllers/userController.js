@@ -95,6 +95,7 @@ exports.login = catchAsync(async (req, res, next) => {
     message: "Login successful!",
     data: {
       token,
+      FCMTokens: user.FCMTokens,
     },
   });
 });

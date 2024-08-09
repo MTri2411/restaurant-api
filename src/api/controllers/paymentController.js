@@ -320,6 +320,7 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
         quantity: item.quantity,
         note: item.note,
         options: item.options,
+        reviewed: item.reviewed,
       }))
     );
     const tableNumber = eachPayment.orderId[0].tableId.tableNumber;
