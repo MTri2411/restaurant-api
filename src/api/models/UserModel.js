@@ -68,7 +68,6 @@ const userSchema = new Schema({
 
   FCMTokens: {
     type: String,
-    default: [],
   },
 });
 
