@@ -66,9 +66,10 @@ const userSchema = new Schema({
 
   passwordResetExpires: Date,
 
-  FCMTokens: {
-    type: String,
-  },
+  FCMTokens: { 
+  type: String, 
+  default: "", 
+},
 });
 
 userSchema.pre("save", async function (next) {
