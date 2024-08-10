@@ -85,7 +85,7 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   if (FCMToken) {
-    user.FCMTokens.push(FCMToken);
+    user.FCMToken = FCMToken;
     await user.save();
   }
 
@@ -95,7 +95,7 @@ exports.login = catchAsync(async (req, res, next) => {
     message: "Login successful!",
     data: {
       token,
-      FCMTokens: user.FCMTokens,
+      FCMToken: user.FCMToken,
     },
   });
 });
