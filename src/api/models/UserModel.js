@@ -67,7 +67,7 @@ const userSchema = new Schema({
   passwordResetExpires: Date,
 
   FCMTokens: {
-    type: [String],
+    type: String,
     default: [],
   },
 });
