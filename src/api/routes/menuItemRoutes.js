@@ -1,7 +1,7 @@
 const expresss = require("express");
 const menuItemController = require("../controllers/menuItemController");
 const authController = require("../controllers/authController");
-const upload = require("../services/cloudinaryServices");
+const { upload } = require("../services/cloudinaryServices");
 
 const router = expresss.Router({ mergeParams: true });
 

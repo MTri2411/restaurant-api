@@ -118,7 +118,7 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
   const dateStart = new Date(dateFromBody.getTime() - 3000);
   const dateEnd = new Date(dateFromBody.getTime() + 3000);
 
-  await Order.updateOne(
+  await Order.updateMany(
     {
       tableId: tableId,
       items: {
@@ -169,7 +169,6 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
 exports.deleteOrderItem = catchAsync(async (req, res, next) => {
   const { tableId, itemId } = req.params;
   const userId = req.user._id;
-
   // Find the existing order
   let existingOrder = await Order.find(
     {
@@ -181,47 +180,36 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
       items: 1,
     }
   );
-
   if (existingOrder.length === 0) {
     return next(new AppError("No order found with this ID", 404));
   }
-
   // Find the existing item in order
   let existingOrderItem;
   existingOrder = existingOrder.filter((eachOrder) => {
     const item = eachOrder.items.find((item) => item._id.toString() === itemId);
-
     if (item) {
       existingOrderItem = item;
       return true;
     }
-
     return false;
   });
-
   if (!existingOrderItem) {
     return next(new AppError("No item found with this ID", 404));
   }
-
   const user = await User.findOne({ _id: userId }, { role: 1 });
-
   if (
     user._id.toString() !== existingOrder[0].userId.toString() &&
     user.role !== "staff"
   ) {
     return next(new AppError("You cannot delete other people's item", 400));
   }
-
   const currentDate = Date.now();
-
   // Time allowed for delete = 3p
   const timeAllowedForDelete =
     (currentDate - Date.parse(existingOrderItem.createdAt)) / 1000;
-
   if (timeAllowedForDelete > 180) {
     return next(new AppError("Time out to delete", 400));
   }
-
   // Delete item in orders.items database
   const updatedOrderItems = await Order.findByIdAndUpdate(
     existingOrder[0]._id,
@@ -234,7 +222,6 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
     path: "items.menuItemId",
     select: "price",
   });
-
   if (updatedOrderItems.items.length > 0) {
     updatedOrderItems.amount = updatedOrderItems.items.reduce(
       (accumulator, currentValue) => {
@@ -244,49 +231,85 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
       },
       0
     );
-
     updatedOrderItems.save();
   } else {
     await Order.deleteOne(updatedOrderItems._id);
   }
-
   res.status(200).json({
     status: "success",
     message: `Deleted successfully!!!`,
   });
 });
 
-exports.updateItemStatus = catchAsync(async (req, res, next) => {
-  const { tableId } = req.params;
-  const { updateAll, itemIds } = req.body;
+// exports.deleteOrderItem = catchAsync(async (req, res, next) => {
+//   const { tableId, menuItemId } = req.params;
+//   const { options } = req.body;
+//   const userId = req.user._id;
 
-  let order = await Order.findOne({ tableId, paymentStatus: "unpaid" });
+//   const timeForDelete = new Date(Date.now() - 180000);
+//   const user = await User.findOne({ _id: userId }, { role: 1 });
 
-  if (!order) {
-    return next(new AppError("No order found with this table ID", 404));
-  }
+//   // if (
+//   //   user._id.toString() !== existingOrder[0].userId.toString() &&
+//   //   user.role !== "staff"
+//   // ) {
+//   //   return next(new AppError("You cannot delete other people's item", 400));
+//   // }
 
-  // Kiểm tra nếu cần cập nhật tất cả items
-  if (updateAll) {
-    order.items.forEach((item) => {
-      if (item.status === "loading") {
-        item.status = "finished";
-      }
-    });
-  } else {
-    // Cập nhật các items cụ thể
-    itemIds.forEach((itemId) => {
-      const item = order.items.find((item) => item._id.toString() === itemId);
-      if (item && item.status === "loading") {
-        item.status = "finished";
-      }
-    });
-  }
+//   await Order.updateOne(
+//     {
+//       tableId,
+//       userId,
+//       paymentStatus: "unpaid",
+//     },
+//     {
+//       $pop: {
+//         items: {
+//           menuItemId,
+//           options,
+//           createdAt: { $gte: timeForDelete },
+//         },
+//       },
+//     }
+//   );
 
-  await order.save();
+//   res.status(200).json({
+//     status: "success",
+//     message: `Deleted successfully!!!`,
+//   });
+// });
 
-  res.status(200).json({
-    status: "success",
-    data: order,
-  });
-});
+// exports.updateItemStatus = catchAsync(async (req, res, next) => {
+//   const { tableId } = req.params;
+//   const { updateAll, itemIds } = req.body;
+
+//   let order = await Order.findOne({ tableId, paymentStatus: "unpaid" });
+
+//   if (!order) {
+//     return next(new AppError("No order found with this table ID", 404));
+//   }
+
+//   // Kiểm tra nếu cần cập nhật tất cả items
+//   if (updateAll) {
+//     order.items.forEach((item) => {
+//       if (item.status === "loading") {
+//         item.status = "finished";
+//       }
+//     });
+//   } else {
+//     // Cập nhật các items cụ thể
+//     itemIds.forEach((itemId) => {
+//       const item = order.items.find((item) => item._id.toString() === itemId);
+//       if (item && item.status === "loading") {
+//         item.status = "finished";
+//       }
+//     });
+//   }
+
+//   await order.save();
+
+//   res.status(200).json({
+//     status: "success",
+//     data: order,
+//   });
+// });

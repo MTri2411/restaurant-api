@@ -1,3 +1,4 @@
 node_modules/
 .env
 .cache/
+src/api/firebase/configJsonFirebase.json

@@ -25,8 +25,8 @@ router
     orderController.deleteOrderItem
   );
 
-router
-  .route("/update-status/:itemId")
-  .patch(authController.restrictTo("staff"), orderController.updateItemStatus);
+// router
+//   .route("/update-status/:itemId")
+//   .patch(authController.restrictTo("staff"), orderController.updateItemStatus);
 
 module.exports = router;

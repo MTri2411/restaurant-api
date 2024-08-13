@@ -18,9 +18,10 @@ const storage = new CloudinaryStorage({
       { quality: "auto" },
       { fetch_format: "auto" },
     ],
+    public_id: (req, file) => file.originalname.split(".")[0],
   },
 });
 
 const upload = multer({ storage });
 
-module.exports = upload;
+module.exports = { upload, cloudinary };
