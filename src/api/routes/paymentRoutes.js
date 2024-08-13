@@ -18,7 +18,7 @@ router.route("/zalopayment/:tableId").post(paymentController.zaloPayment);
 
 router
   .route("/notification-payment")
-  .post(paymentController.sendNotificationPayment);
+  .post(paymentController.sendNotificationBeforePayment);
 
 router.route("/payments-history").get(paymentController.getPaymentsHistory);
 

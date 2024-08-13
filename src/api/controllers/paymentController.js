@@ -268,8 +268,8 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
   }
 });
 
-exports.sendNotificationPayment = catchAsync(async (req, res, next) => {
-  const { tableNumber, voucher } = req.body;
+exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
+  const { tableNumber, voucher, userId } = req.body;
 
   const staffs = await User.find({ role: "staff" }, { role: 1, FCMTokens: 1 });
   const tokens = staffs
@@ -281,13 +281,11 @@ exports.sendNotificationPayment = catchAsync(async (req, res, next) => {
     body: `Bàn ${tableNumber}`,
     data: {
       voucher,
+      userId,
     },
   };
 
-  sendNotification(
-    tokens,
-    payload
-  );
+  sendNotification(tokens, payload);
 
   res.status(200).json({
     status: "success",
