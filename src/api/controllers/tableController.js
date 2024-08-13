@@ -90,7 +90,9 @@ exports.createTable = catchAsync(async (req, res, next) => {
     }
   );
 
-  upsertTable.qrCode = await QRCode.toDataURL(upsertTable._id.toString());
+  upsertTable.qrCode = await QRCode.toDataURL(upsertTable._id.toString(), {
+    width: 800,
+  });
   upsertTable.save();
 
   return res.status(201).json({
