@@ -84,6 +84,11 @@ const userSchema = new Schema({
       default: Date.now,
     },
   },
+
+  FCMTokens: {
+    type: String,
+    default: "",
+  },
 });
 
 userSchema.pre("save", async function (next) {

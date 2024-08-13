@@ -20,6 +20,7 @@ const menuItemRouter = require("./api/routes/menuItemRoutes");
 const orderRouter = require("./api/routes/orderRoutes");
 const promotionRouter = require("./api/routes/promotionRoutes");
 const paymentRouter = require("./api/routes/paymentRoutes");
+const eventRouter = require("./api/routes/eventRoutes");
 
 //: ******* START EXPRESS APP *******
 const app = express();
@@ -79,6 +80,7 @@ app.use("/v1/menu-items", menuItemRouter);
 app.use("/v1/orders", orderRouter);
 app.use("/v1/payments", paymentRouter);
 app.use("/v1/promotions", promotionRouter);
+app.use("/v1/events", eventRouter);
 
 global._io.on("connection", SocketServices.connection);
 
