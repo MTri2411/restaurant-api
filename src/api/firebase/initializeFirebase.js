@@ -1,7 +1,11 @@
 const firebase = require("firebase-admin");
-const configJsonFirebase = require("./configJsonFirebase.json");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
+const fs = require("fs");
+const configPath =
+  process.env.CONFIG_JSON_FIREBASE_PATH ||
+  "./src/api/firebase/configJsonFirebase.json";
+const configJsonFirebase = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
 firebase.initializeApp({
   credential: firebase.credential.cert(configJsonFirebase),
