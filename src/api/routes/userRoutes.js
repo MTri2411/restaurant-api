@@ -2,7 +2,7 @@ const express = require("express");
 const tableRouter = require("./tableRoutes");
 const userController = require("../controllers/userController");
 const authController = require("../controllers/authController");
-const upload = require("../services/cloudinaryServices");
+const { upload } = require("../services/cloudinaryServices");
 
 const router = express.Router();
 

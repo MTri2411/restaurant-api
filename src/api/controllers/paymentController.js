@@ -8,6 +8,7 @@ const axios = require("axios").default;
 const CryptoJS = require("crypto-js");
 const moment = require("moment");
 const mongoose = require("mongoose");
+const { sendNotification } = require("../firebase/initializeFirebase");
 
 const config = {
   app_id: "2554",
@@ -266,6 +267,30 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
   }
 });
 
+exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
+  const { tableNumber, voucher, userId } = req.body;
+
+  const staffs = await User.find({ role: "staff" }, { role: 1, FCMTokens: 1 });
+  const tokens = staffs
+    .map((staff) => staff.FCMTokens)
+    .filter((token) => token !== "");
+
+  const payload = {
+    title: "Thông báo thanh toán",
+    body: `Bàn ${tableNumber}`,
+    data: {
+      voucher,
+      userId,
+    },
+  };
+
+  sendNotification(tokens, payload);
+
+  res.status(200).json({
+    status: "success",
+  });
+});
+
 exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
   let userId = req.user._id;
   let userIdQuery = req.query.userId;
@@ -283,7 +308,7 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       select: "userId",
       populate: {
         path: "userId",
-        select: "fullName img_avatar_url",
+        select: "fullName img_avatar_url role",
       },
     })
     .populate({
@@ -304,7 +329,7 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     })
     .populate({
       path: "userId",
-      select: "fullName img_avatar_url",
+      select: "fullName img_avatar_url role",
     })
     .sort({ createdAt: "desc" });
 
@@ -327,11 +352,13 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     const userPay = {
       fullName: eachPayment.userId.fullName,
       img_avatar_url: eachPayment.userId.img_avatar_url,
+      role: eachPayment.userId.role,
     };
     const userOrder = eachPayment.orderId.flatMap((order) => {
       return {
         fullName: order.userId.fullName,
         img_avatar_url: order.userId.img_avatar_url,
+        role: order.userId.role,
       };
     });
 
@@ -354,13 +381,3 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     data: transformedData,
   });
 });
-
-exports.paymentNotification = async (req, res, next) => {
-  res.sendFile(__basedir + "/index.html");
-};
-
-exports.paymentNotification1 = async (req, res, next) => {
-  const { msg } = req.query;
-  _io.emit("chat message", msg);
-  return res.json({ code: 200, msg });
-};
