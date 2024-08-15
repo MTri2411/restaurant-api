@@ -1,4 +1,5 @@
 const Table = require("../models/TableModel");
+const Order = require("../models/OrderModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -12,10 +13,12 @@ exports.createQRcode = catchAsync(async (req, res, next) => {
   const table = await Table.findById(tableId);
   if (!table) return next(new AppError("Table not found", 404));
 
+  const dataInQRCode = JSON.stringify({ tableId, type: "hardQRCode" });
+
   // Generate QRCode for table
   await QRCode.toFile(
     path.join(__dirname, `../public/img/qrCodeBan${table.tableNumber}.png`),
-    tableId
+    dataInQRCode
   );
 
   res.status(200).json({
@@ -23,8 +26,107 @@ exports.createQRcode = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.checkStatusTable = catchAsync(async (req, res, next) => {
+exports.scanQRCode = catchAsync(async (req, res, next) => {
+  checkSpellFields(["type"], req.body);
   const projection = {
+    qrCode: 0,
+    isDelete: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    __v: 0,
+  };
+
+  const { tableId } = req.params;
+  const { type } = req.body;
+  const userId = req.user._id;
+
+  const [currentUser, table] = await Promise.all([
+    Table.findOne({ currentUsers: userId }, projection),
+    Table.findById(tableId, projection),
+  ]);
+
+  if (!currentUser) {
+    if (type === "hardQRCode") {
+      if (table.status === "lock") {
+        return res.status(200).json({
+          status: "success",
+          usageAllowed: "no",
+          message: `Bàn đang khoá`,
+          data: table,
+        });
+      } else {
+        if (table.currentUsers.length === 0) {
+          table.currentUsers.push(userId);
+          await table.save();
+          return res.status(200).json({
+            status: "success",
+            usageAllowed: "yes",
+            data: table,
+          });
+        } else if (table.currentUsers.length > 0) {
+          return res.status(200).json({
+            status: "success",
+            usageAllowed: "no",
+            message: `Bàn đang có khách`,
+            data: table,
+          });
+        }
+      }
+    } else if (type === "softQRCode") {
+      table.currentUsers.push(userId);
+      await table.save();
+      return res.status(200).json({
+        status: "success",
+        usageAllowed: "yes",
+        data: table,
+      });
+    }
+  } else {
+    if (currentUser.tableNumber === table.tableNumber) {
+      return res.status(200).json({
+        status: "success",
+        usageAllowed: "yes",
+        data: table,
+      });
+    } else {
+      return res.status(200).json({
+        status: "success",
+        usageAllowed: "no",
+        messaging: `Bạn đang ở bàn số ${currentUser.tableNumber}`,
+        data: table,
+      });
+    }
+  }
+});
+
+exports.getTableNumberInUse = catchAsync(async (req, res, next) => {
+  const projection = {
+    qrCode: 0,
+    isDelete: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    __v: 0,
+  };
+
+  const userId = req.user._id;
+
+  const tableNumberInUse = await Table.findOne(
+    { currentUsers: userId },
+    projection
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      tableNumberInUse:
+        tableNumberInUse === null ? null : tableNumberInUse.tableNumber,
+    },
+  });
+});
+
+exports.getAllUserUseTable = catchAsync(async (req, res, next) => {
+  const projection = {
+    qrCode: 0,
     isDelete: 0,
     createdAt: 0,
     updatedAt: 0,
@@ -33,22 +135,83 @@ exports.checkStatusTable = catchAsync(async (req, res, next) => {
 
   const { tableId } = req.params;
 
-  // Check status table
-  const table = await Table.findById(tableId, projection);
+  const table = await Table.findById(tableId, projection).populate({
+    path: "currentUsers",
+    select: "fullName img_avatar_url",
+  });
 
   res.status(200).json({
     status: "success",
-    data: table,
+    totalUser: table.currentUsers.length,
+    data: table.currentUsers,
+  });
+});
+
+exports.logOutTable = catchAsync(async (req, res, next) => {
+  const userId = req.body.userId ? req.body.userId : req.user._id;
+
+  const order = await Order.findOne({
+    userId,
+    paymentStatus: "unpaid",
+  });
+
+  if (order) {
+    return next(
+      new AppError("Vui lòng thanh toán đơn hàng trước khi rời khỏi bàn", 400)
+    );
+  }
+
+  await Table.updateOne(
+    { currentUsers: userId },
+    { $pull: { currentUsers: userId } }
+  );
+
+  res.status(200).json({
+    status: "success",
+    message: "Log out table successfully!!!",
+  });
+});
+
+exports.createSoftQRCode = catchAsync(async (req, res, next) => {
+  const { tableId } = req.params;
+
+  // Find table in database
+  const table = await Table.findById(tableId);
+  if (!table) return next(new AppError("Table not found", 404));
+
+  const dataInQRCode = JSON.stringify({ tableId, type: "softQRCode" });
+
+  // Generate QRCode for table
+  const softQRCode = await QRCode.toDataURL(dataInQRCode);
+
+  res.status(200).json({
+    status: "success",
+    data: softQRCode,
   });
 });
 
 exports.getTables = catchAsync(async (req, res, next) => {
-  const projection = {
-    isDelete: 0,
-    createdAt: 0,
-    updatedAt: 0,
-    __v: 0,
-  };
+  const user = req.user;
+
+  let projection;
+
+  if (user.role === "staff") {
+    projection = {
+      qrCode: 0,
+      isDelete: 0,
+      createdAt: 0,
+      updatedAt: 0,
+      __v: 0,
+    };
+  } else if (user.role === "admin") {
+    projection = {
+      currentUsers: 0,
+      isDelete: 0,
+      createdAt: 0,
+      updatedAt: 0,
+      __v: 0,
+    };
+  }
 
   // Get tables
   const tables = await Table.find({ isDelete: false }, projection);
@@ -133,13 +296,40 @@ exports.updateTable = catchAsync(async (req, res, next) => {
 });
 
 exports.updateStatusTable = catchAsync(async (req, res, next) => {
-  checkSpellFields(["tableNumber", "status"], req.body);
+  checkSpellFields(["status"], req.body);
 
   const { tableId } = req.params;
   const { status } = req.body;
 
   // Check required fields
   if (!status) return next(new AppError("Status is required", 400));
+
+  if (status === "lock") {
+    const order = await Order.find({ tableId, paymentStatus: "unpaid" });
+
+    if (order.length > 0) {
+      return next(new AppError("Bàn này chưa thanh toán", 400));
+    }
+
+    // Update table
+    const updateStatusTable = await Table.findByIdAndUpdate(
+      tableId,
+      { status, currentUsers: [] },
+      {
+        new: true,
+        runValidators: true,
+        select: "_id tableNumber status tableInUse currentUsers",
+      }
+    );
+
+    if (!updateStatusTable)
+      return next(new AppError("No table found with this ID", 404));
+
+    return res.status(200).json({
+      status: "success",
+      data: updateStatusTable,
+    });
+  }
 
   // Update table
   const updateStatusTable = await Table.findByIdAndUpdate(
@@ -148,7 +338,7 @@ exports.updateStatusTable = catchAsync(async (req, res, next) => {
     {
       new: true,
       runValidators: true,
-      select: "_id tableNumber status",
+      select: "_id tableNumber status tableInUse",
     }
   );
 

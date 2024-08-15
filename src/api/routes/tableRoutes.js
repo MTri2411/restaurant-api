@@ -16,9 +16,27 @@ router
   .post(authController.restrictTo("admin"), tableController.createTable);
 
 router
+  .route("/table-in-use")
+  .get(authController.restrictTo("client"), tableController.getTableNumberInUse)
+  .patch(
+    authController.restrictTo("staff", "client"),
+    tableController.logOutTable
+  );
+
+router
+  .route("/table-in-use/:tableId")
+  .get(
+    authController.restrictTo("staff", "client"),
+    tableController.getAllUserUseTable
+  )
+  .post(
+    authController.restrictTo("staff", "client"),
+    tableController.createSoftQRCode
+  );
+
+router
   .route("/:tableId")
-  .get(authController.restrictTo("client"), tableController.checkStatusTable)
-  .post(authController.restrictTo("admin"), tableController.createQRcode)
+  .get(authController.restrictTo("client"), tableController.scanQRCode)
   .patch(authController.restrictTo("admin"), tableController.updateTable)
   .delete(authController.restrictTo("admin"), tableController.softDeleteTable);
 

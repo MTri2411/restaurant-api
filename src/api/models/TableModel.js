@@ -14,6 +14,10 @@ const tableSchema = new mongoose.Schema(
       default: "lock",
     },
 
+    currentUsers: [
+      { type: mongoose.Schema.ObjectId, ref: "User", default: [] },
+    ],
+
     qrCode: {
       type: String,
     },
@@ -27,6 +31,13 @@ const tableSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Virtual
+tableSchema.virtual("currentUsers.user", {
+  ref: "User",
+  localField: "currentUsers",
+  foreignField: "_id",
+});
 
 const Table = mongoose.model("tables", tableSchema);
 module.exports = Table;
