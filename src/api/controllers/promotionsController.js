@@ -71,8 +71,9 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   }
 
   const finalTotal = calculateDiscount(totalAmount, promotion);
+  console.log("finalTotal", finalTotal);
+  
   Object.assign(req, { promotion, finalTotal });
-
   next();
 });
 

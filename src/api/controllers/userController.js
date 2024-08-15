@@ -62,7 +62,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
   }
 
   user.isVerified = true;
-  user.verificationCode = null;
+  user.verificationCode = undefined;
 
   await user.save();
 

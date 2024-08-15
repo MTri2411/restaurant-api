@@ -96,11 +96,17 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
     });
   });
 
-  const amount = items.reduce(
+  // Tính tổng số tiền trước khi áp dụng mã giảm giá
+  const totalAmount = items.reduce(
     (accumulator, currentValue) =>
       accumulator + currentValue.quantity * currentValue.price,
     0
   );
+
+  const { promotion, finalTotal = totalAmount } = req;
+
+  const amount = finalTotal;
+  console.log("amount", amount);
 
   const orderId = orders.map((order) => order._id);
   const embed_data = { orderId };
@@ -117,6 +123,10 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
     callback_url:
       "https://pro2052-restaurant-api.onrender.com/v1/payments/zalopayment-callback",
   };
+
+  if (promotion) {
+    embed_data.promotion = promotion.code;
+  }
 
   // appid|app_trans_id|appuser|amount|apptime|embeddata|item
   const data =
@@ -179,16 +189,22 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         { paymentStatus: "paid" },
         { session }
       );
-
       await Payment.create({
         orderId: orderId,
         userId: dataJson.app_user,
         amount: dataJson.amount,
         paymentMethod: "ZaloPay",
+        voucher: JSON.parse(dataJson.embed_data).promotion,
         appTransactionId: dataJson.app_trans_id,
         zpTransactionId: dataJson.zp_trans_id,
       });
 
+      await Promotion.findOneAndUpdate(
+        { code: JSON.parse(dataJson.embed_data).promotion },
+        { $inc: { usedCount: 1 } },
+        { session }
+      );
+      console.log("Promotion used", JSON.parse(dataJson.embed_data).promotion);
       await session.commitTransaction();
       session.endSession();
 
