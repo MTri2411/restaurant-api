@@ -62,7 +62,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
   }
 
   user.isVerified = true;
-  user.verificationCode = null;
+  user.verificationCode = undefined;
 
   await user.save();
 
@@ -102,13 +102,13 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.logout = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-  if (!user) {
-    return next(new AppError("User not found", 404));
+
+  if (user.FCMTokens === req.body.FCMToken) {
+    user.FCMTokens = undefined;
   }
-  user.FCMTokens = user.FCMTokens.filter(
-    (token) => token !== req.body.FCMToken
-  );
+
   await user.save();
+
   res.status(200).json({
     status: "success",
     message: "Logout successful!",

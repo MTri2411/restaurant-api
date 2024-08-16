@@ -14,7 +14,7 @@ router
   .route("/cashpayment/:tableId")
   .post(promotionController.checkPromotionCode, paymentController.cashPayment);
 
-router.route("/zalopayment/:tableId").post(paymentController.zaloPayment);
+router.route("/zalopayment/:tableId").post(promotionController.checkPromotionCode, paymentController.zaloPayment);
 
 router
   .route("/notification-payment")
