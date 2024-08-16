@@ -106,7 +106,6 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
   const { promotion, finalTotal = totalAmount } = req;
 
   const amount = finalTotal;
-  console.log("amount", amount);
 
   const orderId = orders.map((order) => order._id);
   const embed_data = {
@@ -204,7 +203,20 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         { $inc: { usedCount: 1 } },
         { session }
       );
-      
+
+      await User.findByIdAndUpdate(
+        dataJson.app_user,
+        {
+          $push: {
+            usedPromotions: {
+              promotion: promotion,
+              timesUsed: 1,
+            },
+          },
+        },
+        { session }
+      );
+
       await session.commitTransaction();
       session.endSession();
 
@@ -265,6 +277,18 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       await Promotion.findByIdAndUpdate(
         promotion._id,
         { $inc: { usedCount: 1 } },
+        { session }
+      );
+      await User.findByIdAndUpdate(
+        req.user._id,
+        {
+          $push: {
+            usedPromotions: {
+              promotion: promotion._id,
+              timesUsed: 1,
+            },
+          },
+        },
         { session }
       );
     }
@@ -361,7 +385,6 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
         quantity: item.quantity,
         note: item.note,
         options: item.options,
-        reviewed: item.reviewed,
       }))
     );
     const tableNumber = eachPayment.orderId[0].tableId.tableNumber;
@@ -384,6 +407,7 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       userPay,
       userOrder,
       items,
+      voucher: eachPayment.voucher,
     };
 
     delete transform.orderId;

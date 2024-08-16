@@ -1,6 +1,7 @@
 const Promotion = require("../models/PromotionsModel");
 const Order = require("../models/OrderModel");
 const Payment = require("../models/PaymentModel");
+const User = require("../models/UserModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -33,6 +34,8 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     return next();
   }
 
+  const user = await User.findById(userId).populate("usedPromotions.promotion");
+
   const promotion = await Promotion.findOne({
     code: promotionCode,
     startDate: { $lte: new Date() },
@@ -55,6 +58,21 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     return next();
   }
 
+  if (promotion.usageLimitPerUser) {
+    const userPromotion = user.usedPromotions.find(
+      (usedPromotion) => usedPromotion.promotion.code === promotionCode
+    );
+
+    if (
+      userPromotion &&
+      userPromotion.timesUsed >= promotion.usageLimitPerUser
+    ) {
+      req.promotionError =
+        "Promotion code has reached its usage limit for this user";
+      return next();
+    }
+  }
+
   const orderQuery = userId ? { tableId, userId } : { tableId };
 
   const orders = await Order.find({ ...orderQuery, paymentStatus: "unpaid" });
@@ -71,8 +89,7 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   }
 
   const finalTotal = calculateDiscount(totalAmount, promotion);
-  console.log("finalTotal", finalTotal);
-  
+
   Object.assign(req, { promotion, finalTotal });
   next();
 });

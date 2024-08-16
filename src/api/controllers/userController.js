@@ -179,7 +179,7 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 });
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  const { email } = req.body;
+  const { email, isAdmin } = req.body;
   const user = await User.findOne({ email });
   if (!user) {
     return next(new AppError("User not found!", 404));
@@ -187,7 +187,9 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const resetToken = user.createResetPasswordToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetURL = `http://127.0.0.1:3000/reset-password/${resetToken}`;
+  const resetURL = isAdmin
+    ? `http://127.0.0.1:3000/reset-password/${resetToken}`
+    : `http://127.0.0.1:8081/reset-password/${resetToken}`;
 
   try {
     sendResetPasswordMail(user.email, resetURL);

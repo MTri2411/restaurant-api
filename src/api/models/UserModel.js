@@ -59,7 +59,18 @@ const userSchema = new Schema({
     type: Number,
     default: 0,
   },
-
+  usedPromotions: [
+    {
+      promotion: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Promotion",
+      },
+      timesUsed: {
+        type: Number,
+        default: 0,
+      },
+    },
+  ],
   passwordChangedAt: Date,
 
   passwordResetToken: String,

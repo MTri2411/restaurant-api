@@ -64,6 +64,12 @@ const promotionSchema = new mongoose.Schema(
       type: Number,
     },
 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false,
+    },
+
     startDate: {
       type: Date,
       required: [true, "A promotion must have a start date!"],
@@ -96,7 +102,6 @@ promotionSchema.pre("save", function (next) {
   }
   next();
 });
-
 
 promotionSchema.pre("findByIdAndUpdate", function (next) {
   const update = this.getUpdate();
