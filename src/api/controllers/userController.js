@@ -85,8 +85,10 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   if (FCMToken) {
+    if (user.FCMTokens) {
+      user.FCMTokens = undefined;
+    }
     user.FCMTokens = FCMToken;
-    await user.save();
   }
 
   const token = signToken(user._id);
