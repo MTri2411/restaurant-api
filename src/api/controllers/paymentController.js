@@ -109,7 +109,10 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
   console.log("amount", amount);
 
   const orderId = orders.map((order) => order._id);
-  const embed_data = { orderId };
+  const embed_data = {
+    orderId,
+    promotion: promotion ? promotion.code : undefined,
+  };
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
@@ -123,10 +126,6 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
     callback_url:
       "https://pro2052-restaurant-api.onrender.com/v1/payments/zalopayment-callback",
   };
-
-  if (promotion) {
-    embed_data.promotion = promotion.code;
-  }
 
   // appid|app_trans_id|appuser|amount|apptime|embeddata|item
   const data =
@@ -183,6 +182,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
       // merchant cập nhật trạng thái cho đơn hàng
       let dataJson = JSON.parse(dataStr, config.key2);
       const orderId = JSON.parse(dataJson.embed_data).orderId;
+      const promotion = JSON.parse(dataJson.embed_data).promotion;
 
       await Order.updateMany(
         { _id: { $in: orderId } },
@@ -194,17 +194,17 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         userId: dataJson.app_user,
         amount: dataJson.amount,
         paymentMethod: "ZaloPay",
-        voucher: JSON.parse(dataJson.embed_data).promotion,
+        voucher: promotion,
         appTransactionId: dataJson.app_trans_id,
         zpTransactionId: dataJson.zp_trans_id,
       });
 
       await Promotion.findOneAndUpdate(
-        { code: JSON.parse(dataJson.embed_data).promotion },
+        { code: promotion },
         { $inc: { usedCount: 1 } },
         { session }
       );
-      console.log("Promotion used", JSON.parse(dataJson.embed_data).promotion);
+      
       await session.commitTransaction();
       session.endSession();
 
