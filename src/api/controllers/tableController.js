@@ -7,18 +7,24 @@ const QRCode = require("qrcode");
 const path = require("path");
 
 exports.createQRcode = catchAsync(async (req, res, next) => {
-  const { tableId } = req.params;
+  // const { tableId } = req.params;
 
-  // Find table in database
-  const table = await Table.findById(tableId);
-  if (!table) return next(new AppError("Table not found", 404));
+  // // Find table in database
+  // const table = await Table.findById(tableId);
+  // if (!table) return next(new AppError("Table not found", 404));
 
-  const dataInQRCode = JSON.stringify({ tableId, type: "hardQRCode" });
+  const dataInQRCode = JSON.stringify({
+    tableId: "66ab3a805c6a6d8a1d7f8a8d",
+    type: "hardQRCode",
+  });
 
   // Generate QRCode for table
   await QRCode.toFile(
-    path.join(__dirname, `../public/img/qrCodeBan${table.tableNumber}.png`),
-    dataInQRCode
+    path.join(__dirname, `../public/img/qrCodeBan11.png`),
+    dataInQRCode,
+    {
+      width: 800,
+    }
   );
 
   res.status(200).json({

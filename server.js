@@ -8,7 +8,7 @@ const DB = process.env.DATABASE.replace(
   process.env.DATABASE_PASSWORD
 );
 
-//  const DB = "mongodb://localhost:27017/restaurantDB";
+// const DB = "mongodb://localhost:27017/restaurantDB2";
 
 mongoose.connect(DB).then(() => console.log("DB connection successful!"));
 

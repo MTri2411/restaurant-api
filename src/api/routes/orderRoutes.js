@@ -15,6 +15,13 @@ router
   );
 
 router
+  .route("/get-order-for-client")
+  .get(
+    promotionController.checkPromotionCode,
+    orderController.getOrdersByOrderCount
+  );
+
+router
   .route("/items/:menuItemId")
   .patch(
     authController.restrictTo("staff", "client"),
@@ -24,9 +31,5 @@ router
     authController.restrictTo("staff", "client"),
     orderController.deleteOrderItem
   );
-
-// router
-//   .route("/update-status/:itemId")
-//   .patch(authController.restrictTo("staff"), orderController.updateItemStatus);
 
 module.exports = router;
