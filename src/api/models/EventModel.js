@@ -5,6 +5,7 @@ const eventSchema = new mongoose.Schema(
     title: {
       type: String,
       trim: true,
+      unique: true,
       required: [true, "A event must have a title!"],
     },
 

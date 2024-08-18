@@ -7,7 +7,7 @@ const { cloudinary } = require("../services/cloudinaryServices");
 const { sendNotification } = require("../firebase/initializeFirebase");
 
 exports.deleteOldImage = catchAsync(async (req, res, next) => {
-  // checkSpellFields(["deleteImages"], req.body);
+  checkSpellFields(["title", "summary", "content", "deleteImages"], req.body);
   const { eventId } = req.params;
   const { deleteImages } = req.body;
 
@@ -16,16 +16,15 @@ exports.deleteOldImage = catchAsync(async (req, res, next) => {
     return next(new AppError("Event not found", 404));
   }
 
-  let updateImage_url = event.image_url;
   if (deleteImages && Array.isArray(deleteImages)) {
     for (const url of deleteImages) {
       const publicId = url.split("/").slice(-2).join("/").replace(".jpg", "");
       await cloudinary.uploader.destroy(publicId);
-      updateImage_url = event.image_url.filter((img) => img !== url);
+      event.image_url = event.image_url.filter((img) => img !== url);
     }
   }
 
-  req.updateImage_url = updateImage_url;
+  req.updateImage_url = event.image_url;
   next();
 });
 
@@ -54,18 +53,7 @@ exports.getEventById = catchAsync(async (req, res, next) => {
 });
 
 exports.createEvent = catchAsync(async (req, res, next) => {
-  checkSpellFields(
-    [
-      "title",
-      "summary",
-      "content",
-      "images",
-      "voucher",
-      "voucherStartDate",
-      "voucherEndDate",
-    ],
-    req.body
-  );
+  checkSpellFields(["title", "summary", "content"], req.body);
 
   const { title, summary } = req.body;
   const imageUrls = req.files.map((file) => file.path);
@@ -80,6 +68,9 @@ exports.createEvent = catchAsync(async (req, res, next) => {
   const payload = {
     title,
     body: summary,
+    data: {
+      type: "events"
+    }
   };
 
   sendNotification(tokens, payload);
@@ -92,18 +83,6 @@ exports.createEvent = catchAsync(async (req, res, next) => {
 });
 
 exports.updateEvent = catchAsync(async (req, res, next) => {
-  checkSpellFields(
-    [
-      "title",
-      "summary",
-      "deleteImages",
-      "voucher",
-      "voucherStartDate",
-      "voucherEndDate",
-    ],
-    req.body
-  );
-
   const { eventId } = req.params;
 
   const newImageUrls = req.files.map((file) => file.path);

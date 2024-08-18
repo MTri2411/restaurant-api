@@ -308,7 +308,7 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
 });
 
 exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
-  const { tableNumber, voucher, userId } = req.body;
+  const { tableNumber, voucher, tableId } = req.body;
 
   const staffs = await User.find({ role: "staff" }, { role: 1, FCMTokens: 1 });
   const tokens = staffs
@@ -319,8 +319,10 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
     title: "Thông báo thanh toán",
     body: `Bàn ${tableNumber}`,
     data: {
+      tableId,
+      tableNumber,
       voucher,
-      userId,
+      type: "beforePayment"
     },
   };
 
@@ -387,6 +389,8 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
         options: item.options,
       }))
     );
+
+    console.log(eachPayment);
     const tableNumber = eachPayment.orderId[0].tableId.tableNumber;
     const userPay = {
       fullName: eachPayment.userId.fullName,
