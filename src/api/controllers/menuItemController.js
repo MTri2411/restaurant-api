@@ -1,6 +1,7 @@
 const MenuItem = require("../models/MenuItemModel");
 const Category = require("../models/CategoryModel");
 const Order = require("../models/OrderModel");
+const Review = require("../models/ReviewModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
@@ -155,41 +156,35 @@ exports.deleteMenuItem = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getMenuItemsWithReviews = catchAsync(async (req, res, next) => {
-  const projection = {
-    createdAt: 0,
-    updatedAt: 0,
-    __v: 0,
-  };
+exports.getMenuItemDetails = catchAsync(async (req, res, next) => {
+  const { menuItemId } = req.params;
 
-  let menuItems = await MenuItem.find(
-    { reviews: { $exists: true, $ne: [] } },
-    projection
-  )
+  const menuItem = await MenuItem.findById(menuItemId)
     .populate({
-      path: "reviews",
-      select: "comment rating userId createdAt",
-      options: { sort: { createdAt: -1 } },
-      populate: {
-        path: "userId",
-        select: "fullName",
-      },
+      path: "options",
+      select: "name image_url",
     })
-    .populate({ path: "options", select: "name image_url" })
-    .populate({ path: "category_id", select: "name engName" })
-    .sort({ createdAt: "desc" })
+    .populate({
+      path: "category_id",
+      select: "name engName",
+    })
+    .lean();
 
-  menuItems = menuItems.map((menuItem) => {
-    const reviewCount = menuItem.reviews.length;
-    return {
-      ...menuItem.toObject(),
-      reviewCount,
-    };
-  });
+  if (!menuItem) {
+    return next(new AppError("No menu item found with this ID", 404));
+  }
+
+  const reviews = await Review.find({ menuItemId: menuItem._id })
+    .populate({
+      path: "userId",
+      select: "fullName img_avatar_url",
+    })
+    .lean();
+
+  menuItem.reviews = reviews;
 
   res.status(200).json({
-    success: "success",
-    totalMenuItems: menuItems.length,
-    data: menuItems,
+    status: "success",
+    data: menuItem,
   });
 });

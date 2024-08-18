@@ -107,5 +107,11 @@ menuItemSchema.virtual("category_id.categoryInfor", {
   foreignField: "_id",
 });
 
+menuItemSchema.virtual("reviews", {
+  ref: "Reviews",
+  localField: "_id",
+  foreignField: "menuItem",
+});
+
 const MenuItem = mongoose.model("menuItems", menuItemSchema);
 module.exports = MenuItem;
