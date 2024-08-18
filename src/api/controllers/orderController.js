@@ -29,8 +29,6 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     items.push(...order.items);
   }
 
-  console.log(totalAmount);
-
   const finalTotal = req.promotion ? req.finalTotal : totalAmount;
 
   res.status(200).json({
@@ -44,6 +42,130 @@ exports.getOrders = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
+  const { tableId } = req.params;
+  const userId = req.query.userId ? req.user._id : undefined;
+
+  const orders = await Order.find(
+    { tableId, ...(userId && { userId }), paymentStatus: "unpaid" },
+    {
+      createdAt: 0,
+      updatedAt: 0,
+      __v: 0,
+    }
+  )
+    .populate({
+      path: "items.menuItemId",
+      select: "name price image_url",
+    })
+    .populate({
+      path: "userId",
+      select: "fullName img_avatar_url role",
+    });
+
+  if (userId) {
+    const ordersByOrderCount = Array.from(
+      new Set(orders[0].items.map((item) => item.orderCount))
+    ).map((orderCount) => ({
+      orderCount,
+      items: orders[0].items.filter((item) => item.orderCount === orderCount),
+    }));
+
+    const totalQuantity = orders[0].items.reduce((acc, cur) => {
+      return (acc += cur.quantity);
+    }, 0);
+    const totalAmount = orders[0].amount;
+    const finalTotal = req.promotion ? req.finalTotal : totalAmount;
+
+    res.status(200).json({
+      status: "success",
+      totalQuantity,
+      totalAmount: finalTotal,
+      discountAmount: totalAmount - finalTotal,
+      promotionError: req.promotionError,
+      voucherCode: req.promotion ? req.promotion.code : undefined,
+      data: ordersByOrderCount,
+    });
+  } else {
+    const mergedItems = [];
+    orders
+      .flatMap((order) => order.items)
+      .map((item) => ({
+        menuItemId: item.menuItemId._id,
+        name: item.menuItemId.name,
+        price: item.menuItemId.price,
+        image_url: item.menuItemId.image_url,
+        options: item.options,
+        quantity: item.quantity,
+      }))
+      .forEach((item) => {
+        const existingItem = mergedItems.find(
+          (mergedItem) =>
+            mergedItem.name === item.name && mergedItem.options === item.options
+        );
+
+        if (existingItem) {
+          existingItem.quantity += item.quantity;
+        } else {
+          mergedItems.push(item);
+        }
+      });
+
+    const ordersByNumberOfMenuItem = mergedItems.map((item) => ({
+      ...item,
+      userOrders: orders
+        .filter((order) => {
+          // Filter items in the order to match the current item by name and options
+          const matchedItems = order.items.filter(
+            (itemOfOrder) =>
+              itemOfOrder.menuItemId.name === item.name &&
+              itemOfOrder.options === item.options
+          );
+
+          return matchedItems.length > 0;
+        })
+        .map((order) => {
+          // Find the matching item again to get the quantity
+          const orderQuantity = order.items
+            .filter(
+              (itemOfOrder) =>
+                itemOfOrder.menuItemId.name === item.name &&
+                itemOfOrder.options === item.options
+            )
+            .reduce((accumulator, currentValue) => {
+              return (accumulator += currentValue.quantity);
+            }, 0);
+
+          return {
+            userId: order.userId._id,
+            fullName: order.userId.fullName,
+            img_avatar_url: order.userId.img_avatar_url,
+            role: order.userId.role,
+            orderQuantity: orderQuantity,
+          };
+        }),
+    }));
+
+    const totalAmount = orders.reduce((acc, cur) => {
+      return (acc += cur.amount);
+    }, 0);
+    const totalQuantity = ordersByNumberOfMenuItem.reduce((acc, cur) => {
+      return (acc += cur.quantity);
+    }, 0);
+    const finalTotal = req.promotion ? req.finalTotal : totalAmount;
+
+    res.status(200).json({
+      status: "success",
+      totalQuantity,
+      totalAmount: finalTotal,
+      discountAmount: totalAmount - finalTotal,
+      promotionError: req.promotionError,
+      voucherCode: req.promotion ? req.promotion.code : undefined,
+      data: ordersByNumberOfMenuItem,
+    });
+  }
+});
+
 exports.createOrder = catchAsync(async (req, res, next) => {
   checkSpellFields(["items"], req.body);
 
@@ -52,63 +174,83 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   const { items } = req.body;
 
   let amount = 0;
+  const mergedItems = [];
 
-  for (const item of items) {
-    // Find the existing menu item
-    const existingMenuItem = await MenuItem.findOne({ _id: item.menuItemId });
+  items.forEach((item) => {
+    const existingItem = mergedItems.find(
+      (mergedItem) =>
+        mergedItem.menuItemId === item.menuItemId &&
+        mergedItem.options === item.options
+    );
 
-    if (!existingMenuItem) {
-      return next(new AppError("Menu item is not on the menu", 404));
+    if (existingItem) {
+      existingItem.quantity += item.quantity;
+    } else {
+      mergedItems.push({ ...item });
     }
+  });
 
-    amount += existingMenuItem.price * item.quantity;
+  // Fetch all necessary menu items in a single query
+  const menuItemIds = Array.from(
+    new Set(mergedItems.map((item) => item.menuItemId))
+  );
+  const menuItems = await MenuItem.find(
+    { _id: { $in: menuItemIds } },
+    { price: 1 }
+  );
+
+  if (menuItems.length !== menuItemIds.length) {
+    return next(
+      new AppError("One or more menu items are not on the menu", 404)
+    );
   }
 
   // Find the existing order
-  let existingOrder = await Order.findOne({
+  let order = await Order.findOne({
     userId,
     tableId,
     paymentStatus: "unpaid",
   });
 
-  if (existingOrder) {
-    for (let newItem of items) {
-      newItem.createdAt = Date.now();
-      existingOrder.items.push(newItem);
+  if (order) {
+    for (const mergedItem of mergedItems) {
+      const menuItem = menuItems.find((mi) =>
+        mi._id.equals(mergedItem.menuItemId)
+      );
+
+      mergedItem.orderCount =
+        order.items[order.items.length - 1].orderCount + 1;
+      amount += menuItem.price * mergedItem.quantity;
+    }
+    order.items.push(...mergedItems);
+    order.amount += amount;
+    order = await order.save();
+  } else {
+    for (const mergedItem of mergedItems) {
+      const menuItem = menuItems.find((mi) =>
+        mi._id.equals(mergedItem.menuItemId)
+      );
+
+      mergedItem.orderCount = 1;
+      amount += menuItem.price * mergedItem.quantity;
     }
 
-    existingOrder.amount += amount;
-
-    // Update order
-    const updatedOrder = await Order.findByIdAndUpdate(
-      existingOrder._id,
-      existingOrder,
-      { new: true, runValidators: true }
-    ).populate({
-      path: "items.menuItemId",
-      select: "name engName price image_url rating",
-    });
-
-    return res.status(200).json({
-      status: "success",
-      data: updatedOrder,
+    order = await Order.create({
+      userId,
+      tableId,
+      items: mergedItems,
+      amount,
     });
   }
 
-  await Order.create({ userId, tableId, items, amount });
-
-  const newOrder = await Order.findOne({
-    userId,
-    tableId,
-    paymentStatus: "unpaid",
-  }).populate({
+  const populatedOrder = await order.populate({
     path: "items.menuItemId",
     select: "name engName price image_url rating",
   });
 
   res.status(201).json({
     status: "success",
-    data: newOrder,
+    data: populatedOrder,
   });
 });
 

@@ -24,14 +24,14 @@ const orderSchema = new mongoose.Schema(
         quantity: {
           type: Number,
         },
-        note: {
-          type: String,
-          default: "",
-        },
 
         options: {
           type: String,
           default: "",
+        },
+
+        orderCount: {
+          type: Number,
         },
 
         status: {
@@ -44,7 +44,7 @@ const orderSchema = new mongoose.Schema(
         //   type: Boolean,
         //   default: false,
         // },
-        
+
         createdAt: {
           type: Date,
           default: Date.now,
@@ -73,6 +73,8 @@ const orderSchema = new mongoose.Schema(
           delete element.id;
           delete element.menuItemId.id;
         });
+
+        return ret;
       },
     },
     toObject: { virtuals: true },
