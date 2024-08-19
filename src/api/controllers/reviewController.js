@@ -49,7 +49,14 @@ exports.createReview = catchAsync(async (req, res, next) => {
     return next(new AppError("You cannot review this item", 400));
   }
 
-  // Check if the payment is within the allowed 3-day window for review
+  const orderItem = payment.orderId.find((order) =>
+    order.items.some((item) => item.menuItemId.toString() === menuItemId)
+  );
+
+  if (!orderItem) {
+    return next(new AppError("The menu item is not found in your orders", 400));
+  }
+
   const now = new Date();
   const paymentDate = new Date(payment.createdAt);
   const daysSincePayment = (now - paymentDate) / (1000 * 60 * 60 * 24);
