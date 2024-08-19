@@ -360,7 +360,9 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
         name: "$menuItem.name",
       },
     },
-    { $sort: { timePeriod: 1, totalQuantity: -1 } },
+    {
+      $sort: { timePeriod: 1, totalQuantity: -1 },
+    },
     {
       $group: {
         _id: "$timePeriod",
@@ -374,7 +376,11 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
         topItems: { $slice: ["$topItems", 5] },
       },
     },
-    { $sort: { timePeriod: 1 } },
+    { $unwind: "$topItems" },
+    {
+      $replaceRoot: { newRoot: "$topItems" },
+    },
+    { $sort: { timePeriod: 1, totalQuantity: -1 } },
   ]);
 
   res.status(200).json({
@@ -382,6 +388,7 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
+
 // Hiệu quả của mã khuyến mãi
 exports.getPromotionStatistics = catchAsync(async (req, res, next) => {});
 
