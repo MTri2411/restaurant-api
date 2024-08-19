@@ -351,7 +351,6 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       }))
     );
 
-    console.log(eachPayment);
     const tableNumber = eachPayment.orderId[0].tableId.tableNumber;
     const userPay = {
       fullName: eachPayment.userId.fullName,

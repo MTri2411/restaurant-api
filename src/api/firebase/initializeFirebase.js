@@ -27,6 +27,7 @@ const sendNotification = catchAsync(async (tokens, payload) => {
   };
 
   const response = await firebase.messaging().sendEachForMulticast(message);
+  console.log(response);
 });
 
 module.exports = { sendNotification };
