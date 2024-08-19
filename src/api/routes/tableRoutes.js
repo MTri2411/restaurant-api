@@ -26,7 +26,7 @@ router
 router
   .route("/table-in-use/:tableId")
   .get(
-    authController.restrictTo("staff", "client"),
+    authController.restrictTo("admin", "staff", "client"),
     tableController.getAllUserUseTable
   )
   .post(
