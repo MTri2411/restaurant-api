@@ -261,7 +261,6 @@ exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
-
 // Số lượng món ăn được đặt theo ngày/tuần/tháng/năm
 exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
@@ -339,12 +338,6 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
     totalQuantity: { $sum: "$items.quantity" },
   };
 
-  const projectFields = {
-    _id: "$_id.menuItemId",
-    timePeriod: "$_id.timePeriod",
-    totalQuantity: "$totalQuantity",
-  };
-
   const stats = await Order.aggregate([
     { $match: matchCondition },
     { $unwind: "$items" },
@@ -368,7 +361,20 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
       },
     },
     { $sort: { timePeriod: 1, totalQuantity: -1 } },
-    { $limit: 5 },
+    {
+      $group: {
+        _id: "$timePeriod",
+        topItems: { $push: "$$ROOT" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        timePeriod: "$_id",
+        topItems: { $slice: ["$topItems", 5] },
+      },
+    },
+    { $sort: { timePeriod: 1 } },
   ]);
 
   res.status(200).json({
@@ -376,7 +382,6 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
-
 // Hiệu quả của mã khuyến mãi
 exports.getPromotionStatistics = catchAsync(async (req, res, next) => {});
 
