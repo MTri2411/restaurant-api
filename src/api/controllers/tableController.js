@@ -33,7 +33,6 @@ exports.createQRcode = catchAsync(async (req, res, next) => {
 });
 
 exports.scanQRCode = catchAsync(async (req, res, next) => {
-  checkSpellFields(["type"], req.body);
   const projection = {
     qrCode: 0,
     isDelete: 0,
@@ -43,7 +42,7 @@ exports.scanQRCode = catchAsync(async (req, res, next) => {
   };
 
   const { tableId } = req.params;
-  const { type } = req.body;
+  const { type } = req.query;
   const userId = req.user._id;
 
   const [currentUser, table] = await Promise.all([
