@@ -63,6 +63,18 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
       select: "fullName img_avatar_url role",
     });
 
+  if (orders.length === 0) {
+    return res.status(200).json({
+      status: "success",
+      totalQuantity: 0,
+      totalAmount: 0,
+      discountAmount: 0,
+      promotionError: req.promotionError,
+      voucherCode: req.promotion ? req.promotion.code : undefined,
+      data: [],
+    });
+  }
+
   if (userId) {
     const ordersByOrderCount = Array.from(
       new Set(orders[0].items.map((item) => item.orderCount))
@@ -77,7 +89,7 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
     const totalAmount = orders[0].amount;
     const finalTotal = req.promotion ? req.finalTotal : totalAmount;
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       totalQuantity,
       totalAmount: finalTotal,
@@ -154,7 +166,7 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
     }, 0);
     const finalTotal = req.promotion ? req.finalTotal : totalAmount;
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       totalQuantity,
       totalAmount: finalTotal,
