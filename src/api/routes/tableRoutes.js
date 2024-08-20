@@ -8,6 +8,8 @@ const router = express.Router({ mergeParams: true });
 // redirect to order router (mergeParams)
 router.use("/:tableId/orders/", orderRouter);
 
+router.route("/get-menu").get(tableController.scanQRCode);
+
 router.use(authController.protect);
 
 router
