@@ -17,18 +17,27 @@ router
 router
   .route("/get-order-for-client")
   .get(
+    authController.restrictTo("client"),
     promotionController.checkPromotionCode,
-    orderController.getOrdersByOrderCount
+    orderController.getOrdersForClient
   );
 
 router
-  .route("/items/:menuItemId")
+  .route("/get-order-for-staff")
+  .get(
+    authController.restrictTo("staff"),
+    promotionController.checkPromotionCode,
+    orderController.getOrdersForStaff
+  );
+
+router
+  .route("/items/:itemId")
   .patch(
-    authController.restrictTo("staff", "client"),
+    authController.restrictTo("admin", "staff", "client"),
     orderController.updateStatusItem
   )
   .delete(
-    authController.restrictTo("staff", "client"),
+    authController.restrictTo("admin", "staff", "client"),
     orderController.deleteOrderItem
   );
 
