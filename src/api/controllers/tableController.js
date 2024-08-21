@@ -33,7 +33,6 @@ exports.createQRcode = catchAsync(async (req, res, next) => {
 });
 
 exports.scanQRCode = catchAsync(async (req, res, next) => {
-  checkSpellFields(["type"], req.body);
   const projection = {
     qrCode: 0,
     isDelete: 0,
@@ -43,8 +42,15 @@ exports.scanQRCode = catchAsync(async (req, res, next) => {
   };
 
   const { tableId } = req.params;
-  const { type } = req.body;
-  const userId = req.user._id;
+  const { type } = req.query;
+  const userId = req.user ? req.user._id : undefined;
+
+  if (!userId) {
+    return res.status(200).json({
+      status: "success",
+      usageAllowed: "yes",
+    });
+  }
 
   const [currentUser, table] = await Promise.all([
     Table.findOne({ currentUsers: userId }, projection),
@@ -85,6 +91,12 @@ exports.scanQRCode = catchAsync(async (req, res, next) => {
         status: "success",
         usageAllowed: "yes",
         data: table,
+      });
+    } else {
+      return res.status(200).json({
+        status: "success",
+        usageAllowed: "no",
+        messaging: `Sai type QR Code`,
       });
     }
   } else {

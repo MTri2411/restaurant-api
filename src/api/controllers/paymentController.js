@@ -267,6 +267,8 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       userId: req.user._id,
       amount: finalTotal,
       voucher: promotion ? promotion.code : undefined,
+      amountDiscount:
+        totalAmount - finalTotal === 0 ? undefined : totalAmount - finalTotal,
       paymentMethod: paymentMethod,
       appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
         Math.random() * 1000000
@@ -322,7 +324,7 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
       tableId,
       tableNumber,
       voucher,
-      type: "beforePayment"
+      type: "beforePayment",
     },
   };
 
@@ -385,7 +387,7 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
         image_url: item.menuItemId.image_url,
         rating: item.menuItemId.rating,
         quantity: item.quantity,
-        note: item.note,
+        amount: item.menuItemId.price * item.quantity,
         options: item.options,
       }))
     );
@@ -406,11 +408,11 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
 
     const transform = {
       ...eachPayment.toObject(),
+      voucher: eachPayment.voucher,
       tableNumber,
       userPay,
       userOrder,
       items,
-      voucher: eachPayment.voucher,
     };
 
     delete transform.orderId;

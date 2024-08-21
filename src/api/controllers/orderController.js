@@ -1,9 +1,30 @@
 const Order = require("../models/OrderModel");
 const MenuItem = require("../models/MenuItemModel");
 const User = require("../models/UserModel");
+const Table = require("../models/TableModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
+
+exports.checkUserInTable = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const { tableId } = req.params;
+
+  if (user.role === "staff") {
+    return next();
+  }
+
+  const tableHasUser = await Table.findOne(
+    { _id: tableId, currentUsers: user._id },
+    { tableNumber: 1, currentUsers: 1 }
+  );
+
+  if (!tableHasUser) {
+    return next(new AppError("User not found at the table", 404));
+  }
+
+  next();
+});
 
 exports.getOrders = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
@@ -42,7 +63,7 @@ exports.getOrders = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
+exports.getOrdersForClient = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
   const userId = req.query.userId ? req.user._id : undefined;
 
@@ -76,11 +97,22 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
   }
 
   if (userId) {
+    //: GET USER ORDER
     const ordersByOrderCount = Array.from(
       new Set(orders[0].items.map((item) => item.orderCount))
     ).map((orderCount) => ({
       orderCount,
-      items: orders[0].items.filter((item) => item.orderCount === orderCount),
+      totalQuantityOfOrderCount: orders[0].items
+        .filter((item) => item.orderCount === orderCount)
+        .reduce((acc, cur) => {
+          return (acc += cur.quantity);
+        }, 0),
+      items: orders[0].items
+        .filter((item) => item.orderCount === orderCount)
+        .map((item) => ({
+          ...item.toObject(),
+          amount: item.menuItemId.price * item.quantity,
+        })),
     }));
 
     const totalQuantity = orders[0].items.reduce((acc, cur) => {
@@ -99,6 +131,7 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
       data: ordersByOrderCount,
     });
   } else {
+    //: GET ALL ORDER
     const mergedItems = [];
     orders
       .flatMap((order) => order.items)
@@ -109,6 +142,7 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
         image_url: item.menuItemId.image_url,
         options: item.options,
         quantity: item.quantity,
+        amount: item.menuItemId.price * item.quantity,
       }))
       .forEach((item) => {
         const existingItem = mergedItems.find(
@@ -118,6 +152,7 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
 
         if (existingItem) {
           existingItem.quantity += item.quantity;
+          existingItem.amount += item.quantity * item.price;
         } else {
           mergedItems.push(item);
         }
@@ -174,6 +209,185 @@ exports.getOrdersByOrderCount = catchAsync(async (req, res, next) => {
       promotionError: req.promotionError,
       voucherCode: req.promotion ? req.promotion.code : undefined,
       data: ordersByNumberOfMenuItem,
+    });
+  }
+});
+
+exports.getOrdersForStaff = catchAsync(async (req, res, next) => {
+  const { tableId } = req.params;
+  const statusOrder = req.query.statusOrder;
+
+  const orders = await Order.find(
+    { tableId, paymentStatus: "unpaid" },
+    {
+      createdAt: 0,
+      updatedAt: 0,
+      __v: 0,
+    }
+  )
+    .populate({
+      path: "items.menuItemId",
+      select: "name price image_url",
+    })
+    .populate({
+      path: "userId",
+      select: "fullName img_avatar_url role",
+    });
+
+  if (orders.length === 0) {
+    return res.status(200).json({
+      status: "success",
+      totalQuantity: 0,
+      totalAmount: 0,
+      discountAmount: 0,
+      promotionError: req.promotionError,
+      voucherCode: req.promotion ? req.promotion.code : undefined,
+      data: [],
+    });
+  }
+
+  if (statusOrder === "loading") {
+    const ordersByStatus = orders
+      .flatMap((order) =>
+        order.items
+          .filter((item) => item.status === "loading")
+          .map((item) => ({
+            _id: item._id,
+            menuItemId: item.menuItemId._id,
+            name: item.menuItemId.name,
+            options: item.options,
+            price: item.menuItemId.price,
+            image_url: item.menuItemId.image_url,
+            quantity: item.quantity,
+            amount: item.menuItemId.price * item.quantity,
+            orderCount: item.orderCount,
+            status: item.status,
+            createdAt: item.createdAt,
+            userOrder: order.userId,
+          }))
+      )
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    // a.createdAt - b.createdAt
+    // b.createdAt - a.createdAt
+
+    const totalQuantity = ordersByStatus.reduce((acc, cur) => {
+      return (acc += cur.quantity);
+    }, 0);
+
+    return res.status(200).json({
+      status: "success",
+      totalQuantity,
+      data: ordersByStatus,
+    });
+  } else if (statusOrder === "finished") {
+    //: GET ALL ORDER
+    const mergedItems = [];
+    orders
+      .flatMap((order) => order.items)
+      .map((item) => ({
+        menuItemId: item.menuItemId._id,
+        name: item.menuItemId.name,
+        price: item.menuItemId.price,
+        image_url: item.menuItemId.image_url,
+        options: item.options,
+        totalQuantity: item.quantity,
+        amount: item.menuItemId.price * item.quantity,
+        status: item.status,
+      }))
+      .forEach((item) => {
+        const existingItem = mergedItems.find(
+          (mergedItem) =>
+            mergedItem.name === item.name && mergedItem.options === item.options
+        );
+
+        if (existingItem) {
+          existingItem.totalQuantity += item.totalQuantity;
+          existingItem.amount += item.price * item.totalQuantity;
+
+          if (item.status === "finished") {
+            existingItem.finishedQuantity += item.totalQuantity;
+          } else if (item.status === "loading") {
+            existingItem.loadingQuantity += item.totalQuantity;
+          }
+        } else {
+          mergedItems.push({
+            ...item,
+            loadingQuantity: item.status === "loading" ? item.totalQuantity : 0,
+            finishedQuantity:
+              item.status === "finished" ? item.totalQuantity : 0,
+          });
+        }
+      });
+
+    const ordersByNumberOfMenuItem = mergedItems.map((item) => ({
+      ...item,
+      userOrders: orders
+        .filter((order) => {
+          // Filter items in the order to match the current item by name and options
+          const matchedItems = order.items.filter(
+            (itemOfOrder) =>
+              itemOfOrder.menuItemId.name === item.name &&
+              itemOfOrder.options === item.options
+          );
+
+          return matchedItems.length > 0;
+        })
+        .map((order) => {
+          const finishedQuantity = order.items
+            .filter(
+              (itemOfOrder) =>
+                itemOfOrder.menuItemId.name === item.name &&
+                itemOfOrder.options === item.options &&
+                itemOfOrder.status === "finished"
+            )
+            .reduce((accumulator, currentValue) => {
+              return (accumulator += currentValue.quantity);
+            }, 0);
+
+          const loadingQuantity = order.items
+            .filter(
+              (itemOfOrder) =>
+                itemOfOrder.menuItemId.name === item.name &&
+                itemOfOrder.options === item.options &&
+                itemOfOrder.status === "loading"
+            )
+            .reduce((accumulator, currentValue) => {
+              return (accumulator += currentValue.quantity);
+            }, 0);
+
+          return {
+            userId: order.userId._id,
+            fullName: order.userId.fullName,
+            img_avatar_url: order.userId.img_avatar_url,
+            role: order.userId.role,
+            finishedQuantity: finishedQuantity,
+            loadingQuantity: loadingQuantity,
+          };
+        }),
+    }));
+
+    const totalAmount = ordersByNumberOfMenuItem.reduce((acc, cur) => {
+      return (acc += cur.price * cur.totalQuantity);
+    }, 0);
+    const totalQuantity = ordersByNumberOfMenuItem.reduce((acc, cur) => {
+      return (acc += cur.totalQuantity);
+    }, 0);
+    const finalTotal = req.promotion ? req.finalTotal : totalAmount;
+
+    return res.status(200).json({
+      status: "success",
+      totalQuantity,
+      totalAmount: finalTotal,
+      discountAmount: totalAmount - finalTotal,
+      promotionError: req.promotionError,
+      voucherCode: req.promotion ? req.promotion.code : undefined,
+      data: ordersByNumberOfMenuItem,
+    });
+  } else {
+    return res.status(200).json({
+      status: "success",
+      message: "Thiếu statusOrder",
     });
   }
 });
@@ -267,53 +481,31 @@ exports.createOrder = catchAsync(async (req, res, next) => {
 });
 
 exports.updateStatusItem = catchAsync(async (req, res, next) => {
-  const { tableId, menuItemId } = req.params;
-  const { createdAt } = req.body;
-  const dateFromBody = new Date(createdAt);
-  const dateStart = new Date(dateFromBody.getTime() - 3000);
-  const dateEnd = new Date(dateFromBody.getTime() + 3000);
+  const { tableId, itemId } = req.params;
+  const { status } = req.query;
 
-  await Order.updateMany(
+  const updatedOrderItems = await Order.findOneAndUpdate(
     {
-      tableId: tableId,
+      tableId,
+      paymentStatus: "unpaid",
       items: {
         $elemMatch: {
-          menuItemId: menuItemId,
-          createdAt: {
-            $gte: dateStart,
-            $lt: dateEnd,
-          },
+          _id: itemId,
         },
       },
     },
-    { $set: { "items.$[el].status": "finished" } },
     {
-      arrayFilters: [
-        {
-          "el.menuItemId": menuItemId,
-          "el.createdAt": {
-            $gte: dateStart,
-            $lt: dateEnd,
-          },
-        },
-      ],
+      "items.$.status": status,
+    },
+    {
+      new: true,
+      runValidators: true,
     }
   );
 
-  const updatedOrderItems = await Order.find({
-    items: {
-      $elemMatch: {
-        menuItemId: menuItemId,
-        createdAt: {
-          $gte: dateStart,
-          $lt: dateEnd,
-        },
-      },
-    },
-  }).populate({
-    path: "items.menuItemId",
-    select: "price",
-  });
+  if (!updatedOrderItems) {
+    return next(new AppError("Item not found", 404));
+  }
 
   res.status(200).json({
     status: "success",
@@ -322,149 +514,56 @@ exports.updateStatusItem = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteOrderItem = catchAsync(async (req, res, next) => {
-  const { tableId, itemId } = req.params;
-  const userId = req.user._id;
-  // Find the existing order
-  let existingOrder = await Order.find(
-    {
-      tableId,
-      paymentStatus: "unpaid",
-    },
-    {
-      userId: 1,
-      items: 1,
-    }
+  const specifiedTime = req.query.specifiedTime ? req.query.specifiedTime : 180;
+  const timeAllowDelete = new Date(
+    Date.now() - Number.parseInt(specifiedTime) * 1000
   );
-  if (existingOrder.length === 0) {
-    return next(new AppError("No order found with this ID", 404));
-  }
-  // Find the existing item in order
-  let existingOrderItem;
-  existingOrder = existingOrder.filter((eachOrder) => {
-    const item = eachOrder.items.find((item) => item._id.toString() === itemId);
-    if (item) {
-      existingOrderItem = item;
-      return true;
-    }
-    return false;
-  });
-  if (!existingOrderItem) {
-    return next(new AppError("No item found with this ID", 404));
-  }
-  const user = await User.findOne({ _id: userId }, { role: 1 });
-  if (
-    user._id.toString() !== existingOrder[0].userId.toString() &&
-    user.role !== "staff"
-  ) {
-    return next(new AppError("You cannot delete other people's item", 400));
-  }
-  const currentDate = Date.now();
-  // Time allowed for delete = 3p
-  const timeAllowedForDelete =
-    (currentDate - Date.parse(existingOrderItem.createdAt)) / 1000;
-  if (timeAllowedForDelete > 180) {
-    return next(new AppError("Time out to delete", 400));
-  }
-  // Delete item in orders.items database
-  const updatedOrderItems = await Order.findByIdAndUpdate(
-    existingOrder[0]._id,
-    { $pull: { items: { _id: itemId } } },
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).populate({
-    path: "items.menuItemId",
-    select: "price",
-  });
-  if (updatedOrderItems.items.length > 0) {
-    updatedOrderItems.amount = updatedOrderItems.items.reduce(
-      (accumulator, currentValue) => {
-        return (
-          accumulator + currentValue.menuItemId.price * currentValue.quantity
-        );
+
+  const { tableId, itemId } = req.params;
+  const user = req.user;
+
+  const order = await Order.findOne({
+    tableId,
+    paymentStatus: "unpaid",
+    items: {
+      $elemMatch: {
+        _id: itemId,
       },
-      0
-    );
-    updatedOrderItems.save();
-  } else {
-    await Order.deleteOne(updatedOrderItems._id);
+    },
+  });
+
+  if (!order) {
+    return next(new AppError("Không tìm thấy món", 404));
   }
+
+  if (user.role === "client") {
+    const item = order.items.filter((item) => item._id.toString() === itemId);
+
+    if (item[0].status === "finished") {
+      return next(new AppError("Không thể xoá món này vì món đã hoàn thành"));
+    }
+
+    if (timeAllowDelete - item[0].createdAt >= 0) {
+      return next(
+        new AppError("Không thể xoá món này vì đã hết thời gian quy định", 400)
+      );
+    }
+
+    order.items.pull({ _id: item[0]._id });
+    await order.save();
+  } else {
+    const item = order.items.filter((item) => item._id.toString() === itemId);
+
+    if (item[0].status === "finished") {
+      return next(new AppError("Không thể xoá món này vì món đã hoàn thành"));
+    }
+
+    order.items.pull({ _id: item[0]._id });
+    await order.save();
+  }
+
   res.status(200).json({
     status: "success",
     message: `Deleted successfully!!!`,
   });
 });
-
-// exports.deleteOrderItem = catchAsync(async (req, res, next) => {
-//   const { tableId, menuItemId } = req.params;
-//   const { options } = req.body;
-//   const userId = req.user._id;
-
-//   const timeForDelete = new Date(Date.now() - 180000);
-//   const user = await User.findOne({ _id: userId }, { role: 1 });
-
-//   // if (
-//   //   user._id.toString() !== existingOrder[0].userId.toString() &&
-//   //   user.role !== "staff"
-//   // ) {
-//   //   return next(new AppError("You cannot delete other people's item", 400));
-//   // }
-
-//   await Order.updateOne(
-//     {
-//       tableId,
-//       userId,
-//       paymentStatus: "unpaid",
-//     },
-//     {
-//       $pop: {
-//         items: {
-//           menuItemId,
-//           options,
-//           createdAt: { $gte: timeForDelete },
-//         },
-//       },
-//     }
-//   );
-
-//   res.status(200).json({
-//     status: "success",
-//     message: `Deleted successfully!!!`,
-//   });
-// });
-
-// exports.updateItemStatus = catchAsync(async (req, res, next) => {
-//   const { tableId } = req.params;
-//   const { updateAll, itemIds } = req.body;
-
-//   let order = await Order.findOne({ tableId, paymentStatus: "unpaid" });
-
-//   if (!order) {
-//     return next(new AppError("No order found with this table ID", 404));
-//   }
-
-//   // Kiểm tra nếu cần cập nhật tất cả items
-//   if (updateAll) {
-//     order.items.forEach((item) => {
-//       if (item.status === "loading") {
-//         item.status = "finished";
-//       }
-//     });
-//   } else {
-//     // Cập nhật các items cụ thể
-//     itemIds.forEach((itemId) => {
-//       const item = order.items.find((item) => item._id.toString() === itemId);
-//       if (item && item.status === "loading") {
-//         item.status = "finished";
-//       }
-//     });
-//   }
-
-//   await order.save();
-
-//   res.status(200).json({
-//     status: "success",
-//     data: order,
-//   });
-// });
