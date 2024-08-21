@@ -267,3 +267,33 @@ exports.deleteUserById = catchAsync(async (req, res, next) => {
     message: "User deleted successfully!",
   });
 });
+
+exports.updateUserByAdmin = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  const allowedFields = ["fullName", "email", "role"];
+  Object.keys(req.body).forEach((field) => {
+    if (allowedFields.includes(field)) {
+      user[field] = req.body[field];
+    }
+  });
+
+  if (req.file) {
+    user.img_avatar_url = req.file.path;
+  }
+  await user.save();
+
+  const userObj = user.toObject();
+  delete userObj.password;
+
+  res.status(200).json({
+    status: "success",
+    message: "User updated successfully!",
+    data: {
+      user: userObj,
+    },
+  });
+});

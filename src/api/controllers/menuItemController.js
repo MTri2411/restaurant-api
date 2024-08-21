@@ -1,6 +1,7 @@
 const MenuItem = require("../models/MenuItemModel");
 const Category = require("../models/CategoryModel");
 const Order = require("../models/OrderModel");
+const User = require("../models/UserModel");
 const Review = require("../models/ReviewModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
@@ -157,34 +158,28 @@ exports.deleteMenuItem = catchAsync(async (req, res, next) => {
 });
 
 exports.getMenuItemDetails = catchAsync(async (req, res, next) => {
+  // Hiển thị chi tiết menu item kèm theo reviews
   const { menuItemId } = req.params;
 
-  const menuItem = await MenuItem.findById(menuItemId)
-    .populate({
-      path: "options",
-      select: "name image_url",
-    })
-    .populate({
-      path: "category_id",
-      select: "name engName",
-    })
-    .lean();
+  const menuItem = await MenuItem.findById(menuItemId).populate({
+    path: "options",
+    select: "name image_url",
+  });
 
   if (!menuItem) {
     return next(new AppError("No menu item found with this ID", 404));
   }
 
-  const reviews = await Review.find({ menuItemId: menuItem._id })
-    .populate({
-      path: "userId",
-      select: "fullName img_avatar_url",
-    })
-    .lean();
-
-  menuItem.reviews = reviews;
+  const reviews = await Review.find({ menuItemId }).populate({
+    path: "userId",
+    select: "fullName",
+  });
 
   res.status(200).json({
-    status: "success",
-    data: menuItem,
+    success: "success",
+    data: {
+      menuItem,
+      reviews,
+    },
   });
 });

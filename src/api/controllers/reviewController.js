@@ -40,36 +40,30 @@ exports.createReview = catchAsync(async (req, res, next) => {
   const { rating, comment, menuItemId } = req.body;
   const userId = req.user._id;
 
-  const payment = await Payment.findOne({
-    userId,
-    "orderId.items.menuItemId": menuItemId,
+  // Tìm payment của user và lấy orderId của đơn hàng gần nhất
+  const payment = await Payment.findOne({ userId }).populate({
+    path: "orderId",
+    populate: { path: "items.menuItem", model: "menuItems" },
   });
 
   if (!payment) {
-    return next(new AppError("You cannot review this item", 400));
-  }
-
-  const orderItem = payment.orderId.find((order) =>
-    order.items.some((item) => item.menuItemId.toString() === menuItemId)
-  );
-
-  if (!orderItem) {
-    return next(new AppError("The menu item is not found in your orders", 400));
-  }
-
-  const now = new Date();
-  const paymentDate = new Date(payment.createdAt);
-  const daysSincePayment = (now - paymentDate) / (1000 * 60 * 60 * 24);
-
-  if (daysSincePayment > 3) {
     return next(
       new AppError(
-        "You can only review this item within 3 days of payment",
+        "Can't review a menu item that you haven't ordered before",
         400
       )
     );
   }
+  
+  const order = payment.orderId.find((order) =>
+    order.items.some((item) => item.menuItemId.toString() === menuItemId)
+  );
 
+  if (!order) {
+    return next(new AppError("The menu item is not found in your orders", 400));
+  }
+
+  // Tạo review mới
   const review = await Review.create({
     userId,
     menuItemId,
@@ -77,44 +71,20 @@ exports.createReview = catchAsync(async (req, res, next) => {
     comment,
   });
 
-  const menuItem = await MenuItem.findById(menuItemId);
-  menuItem.reviews.push(review._id);
-  const reviews = await Review.find({ menuItemId: menuItem._id });
-  const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
-  menuItem.rating = totalRating / reviews.length;
-  await menuItem.save();
+  const reviews = await Review.find({ menuItemId });
+  const averageRating =
+    reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length;
+
+  await MenuItem.findByIdAndUpdate(menuItemId, { rating: averageRating });
+
+  const populatedReview = await Review.findById(review._id).populate("order");
 
   res.status(201).json({
     status: "success",
-    data: review,
+    data: populatedReview,
   });
 });
 
-exports.updateReview = catchAsync(async (req, res, next) => {
-  checkSpellFields(["rating", "comment"], req.body);
-  const { rating, comment } = req.body;
-  const reviewId = req.params.id;
-
-  const review = await Review.findById(reviewId);
-
-  if (!review) {
-    return next(new AppError("Review not found", 404));
-  }
-
-  if (review.userId.toString() !== req.user._id.toString()) {
-    return next(new AppError("You cannot update this review", 403));
-  }
-
-  review.rating = rating;
-  review.comment = comment;
-  await review.save();
-
-  res.status(200).json({
-    status: "success",
-    data: review,
-  });
-});
+exports.updateReview = catchAsync(async (req, res, next) => {});
 
 exports.deleteReview = catchAsync(async (req, res, next) => {});
-
-exports.getUserReviews = catchAsync(async (req, res, next) => {});

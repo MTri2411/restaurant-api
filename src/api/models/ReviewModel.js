@@ -26,12 +26,6 @@ const reviewSchema = new mongoose.Schema(
       default: "",
     },
 
-    status: {
-      type: String,
-      enum: ["loading", "finished"],
-      default: "loading",
-    },
-
     createdAt: {
       type: Date,
       default: Date.now,
@@ -41,6 +35,13 @@ const reviewSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+reviewSchema.virtual("orders", {
+  ref: "Orders",
+  localField: "userId",
+  foreignField: "userId",
+  justOne: false,
+});
 
 const Review = mongoose.model("Reviews", reviewSchema);
 module.exports = Review;
