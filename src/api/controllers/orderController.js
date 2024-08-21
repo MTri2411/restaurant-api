@@ -1,9 +1,30 @@
 const Order = require("../models/OrderModel");
 const MenuItem = require("../models/MenuItemModel");
 const User = require("../models/UserModel");
+const Table = require("../models/TableModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
 const checkSpellFields = require("../utils/checkSpellFields");
+
+exports.checkUserInTable = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const { tableId } = req.params;
+
+  if (user.role === "staff") {
+    return next();
+  }
+
+  const tableHasUser = await Table.findOne(
+    { _id: tableId, currentUsers: user._id },
+    { tableNumber: 1, currentUsers: 1 }
+  );
+
+  if (!tableHasUser) {
+    return next(new AppError("User not found at the table", 404));
+  }
+
+  next();
+});
 
 exports.getOrders = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
@@ -86,7 +107,12 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
         .reduce((acc, cur) => {
           return (acc += cur.quantity);
         }, 0),
-      items: orders[0].items.filter((item) => item.orderCount === orderCount),
+      items: orders[0].items
+        .filter((item) => item.orderCount === orderCount)
+        .map((item) => ({
+          ...item.toObject(),
+          amount: item.menuItemId.price * item.quantity,
+        })),
     }));
 
     const totalQuantity = orders[0].items.reduce((acc, cur) => {
@@ -116,6 +142,7 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
         image_url: item.menuItemId.image_url,
         options: item.options,
         quantity: item.quantity,
+        amount: item.menuItemId.price * item.quantity,
       }))
       .forEach((item) => {
         const existingItem = mergedItems.find(
@@ -125,6 +152,7 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
 
         if (existingItem) {
           existingItem.quantity += item.quantity;
+          existingItem.amount += item.quantity * item.price;
         } else {
           mergedItems.push(item);
         }
@@ -219,8 +247,8 @@ exports.getOrdersForStaff = catchAsync(async (req, res, next) => {
   }
 
   if (statusOrder === "loading") {
-    const ordersByStatus = orders.flatMap(
-      (order) =>
+    const ordersByStatus = orders
+      .flatMap((order) =>
         order.items
           .filter((item) => item.status === "loading")
           .map((item) => ({
@@ -231,16 +259,17 @@ exports.getOrdersForStaff = catchAsync(async (req, res, next) => {
             price: item.menuItemId.price,
             image_url: item.menuItemId.image_url,
             quantity: item.quantity,
+            amount: item.menuItemId.price * item.quantity,
             orderCount: item.orderCount,
             status: item.status,
             createdAt: item.createdAt,
             userOrder: order.userId,
           }))
-          .sort((a, b) => b.createdAt - a.createdAt)
+      )
+      .sort((a, b) => b.createdAt - a.createdAt);
 
-      // a.createdAt - b.createdAt
-      // b.createdAt - a.createdAt
-    );
+    // a.createdAt - b.createdAt
+    // b.createdAt - a.createdAt
 
     const totalQuantity = ordersByStatus.reduce((acc, cur) => {
       return (acc += cur.quantity);
@@ -263,6 +292,7 @@ exports.getOrdersForStaff = catchAsync(async (req, res, next) => {
         image_url: item.menuItemId.image_url,
         options: item.options,
         totalQuantity: item.quantity,
+        amount: item.menuItemId.price * item.quantity,
         status: item.status,
       }))
       .forEach((item) => {
@@ -273,6 +303,7 @@ exports.getOrdersForStaff = catchAsync(async (req, res, next) => {
 
         if (existingItem) {
           existingItem.totalQuantity += item.totalQuantity;
+          existingItem.amount += item.price * item.totalQuantity;
 
           if (item.status === "finished") {
             existingItem.finishedQuantity += item.totalQuantity;

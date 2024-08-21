@@ -11,6 +11,7 @@ router
   .get(promotionController.checkPromotionCode, orderController.getOrders)
   .post(
     authController.restrictTo("staff", "client"),
+    orderController.checkUserInTable,
     orderController.createOrder
   );
 

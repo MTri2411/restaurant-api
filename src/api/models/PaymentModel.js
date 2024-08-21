@@ -22,6 +22,10 @@ const paymentSchema = new mongoose.Schema(
       type: String,
     },
 
+    amountDiscount: {
+      type: Number,
+    },
+
     paymentMethod: {
       type: String,
     },
