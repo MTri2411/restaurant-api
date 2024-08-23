@@ -10,20 +10,20 @@ const Handlebars = require("handlebars");
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 
-async function updatePromotionStatus() {
-  const now = moment.tz("Asia/Ho_Chi_Minh").toDate();
-  await Promotion.updateMany(
-    {
-      $or: [
-        { endDate: { $lt: now } },
-        { $expr: { $lte: ["$maxUsage", "$usedCount"] } },
-      ],
-    },
-    { isActive: false }
-  );
-}
+// async function updatePromotionStatus() {
+//   const now = moment.tz("Asia/Ho_Chi_Minh").toDate();
+//   await Promotion.updateMany(
+//     {
+//       $or: [
+//         { endDate: { $lt: now } },
+//         { $expr: { $lte: ["$maxUsage", "$usedCount"] } },
+//       ],
+//     },
+//     { isActive: false }
+//   );
+// }
 
-cron.schedule("0 0 * * *", updatePromotionStatus);
+// cron.schedule("0 0 * * *", updatePromotionStatus);
 
 exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const promotionCode = req.query.promotionCode || req.body.promotionCode;
