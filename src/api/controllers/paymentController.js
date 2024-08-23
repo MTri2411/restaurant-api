@@ -1,5 +1,6 @@
 const Order = require("../models/OrderModel");
 const Payment = require("../models/PaymentModel");
+const Table = require("../models/TableModel");
 const Promotion = require("../models/PromotionsModel");
 const User = require("../models/UserModel");
 const catchAsync = require("../utils/catchAsync");
@@ -70,38 +71,51 @@ const validatePayment = async (req, res, next) => {
 
 exports.zaloPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
-  const userId = req.user._id;
 
-  if (orders.length === 0) {
-    return next(new AppError("No order found", 404));
+  const { tableId } = req.params;
+
+  const table = await Table.findById(tableId, {
+    tableNumber: 1,
+    currentUsers: 1,
+  });
+
+  let arrUserForNoti = [];
+  if (!req.query.userId) {
+    arrUserForNoti.push(...table.currentUsers);
+  } else if (req.query.userId === "true") {
+    arrUserForNoti.push(req.user._id);
   }
 
   let items = [];
-  orders.flatMap((order) => {
-    return order.items.flatMap((orderItem) => {
-      const existingOrderItemInItemsIndex = items.findIndex(
-        (item) => item.id === orderItem.menuItemId._id.toString()
+  orders
+    .flatMap((order) => order.items)
+    .map((orderItem) => {
+      const existingOrderItemByIndex = items.findIndex(
+        (item) =>
+          item.id === orderItem.menuItemId._id.toString() &&
+          item.options === orderItem.options
       );
 
-      if (existingOrderItemInItemsIndex !== -1) {
-        items[existingOrderItemInItemsIndex].quantity += orderItem.quantity;
+      if (existingOrderItemByIndex !== -1) {
+        items[existingOrderItemByIndex].quantity += orderItem.quantity;
+        items[existingOrderItemByIndex].amount +=
+          orderItem.menuItemId.price * orderItem.quantity;
       } else {
         items.push({
           id: orderItem.menuItemId._id.toString(),
           name: orderItem.menuItemId.name,
-          quantity: orderItem.quantity,
+          options: orderItem.options,
           price: orderItem.menuItemId.price,
+          quantity: orderItem.quantity,
+          amount: orderItem.menuItemId.price * orderItem.quantity,
         });
       }
     });
-  });
 
   // Tính tổng số tiền trước khi áp dụng mã giảm giá
-  const totalAmount = items.reduce(
-    (accumulator, currentValue) =>
-      accumulator + currentValue.quantity * currentValue.price,
-    0
-  );
+  const totalAmount = items.reduce((acc, cur) => {
+    return (acc += cur.amount);
+  }, 0);
 
   const { promotion, finalTotal = totalAmount } = req;
 
@@ -110,13 +124,19 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
   const orderId = orders.map((order) => order._id);
   const embed_data = {
     orderId,
-    promotion: promotion ? promotion.code : undefined,
+    tableNumber: table.tableNumber,
+    arrUserForNoti,
+    promotion: promotion
+      ? { _id: promotion._id, code: promotion.code }
+      : undefined,
+    amountDiscount:
+      totalAmount - amount !== 0 ? totalAmount - amount : undefined,
   };
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
     app_trans_id: `${moment().format("YYMMDD")}${transID}`,
-    app_user: userId,
+    app_user: req.user._id,
     app_time: Date.now(), // miliseconds
     item: JSON.stringify(items),
     embed_data: JSON.stringify(embed_data),
@@ -181,41 +201,79 @@ exports.zaloPaymentCallback = async (req, res, next) => {
       // merchant cập nhật trạng thái cho đơn hàng
       let dataJson = JSON.parse(dataStr, config.key2);
       const orderId = JSON.parse(dataJson.embed_data).orderId;
+      const tableNumber = JSON.parse(dataJson.embed_data).tableNumber;
+      const arrUserForNoti = JSON.parse(dataJson.embed_data).arrUserForNoti;
       const promotion = JSON.parse(dataJson.embed_data).promotion;
+      const amountDiscount = JSON.parse(dataJson.embed_data).amountDiscount;
 
       await Order.updateMany(
         { _id: { $in: orderId } },
         { paymentStatus: "paid" },
         { session }
       );
-      await Payment.create({
-        orderId: orderId,
-        userId: dataJson.app_user,
-        amount: dataJson.amount,
-        paymentMethod: "ZaloPay",
-        voucher: promotion,
-        appTransactionId: dataJson.app_trans_id,
-        zpTransactionId: dataJson.zp_trans_id,
-      });
-
-      await Promotion.findOneAndUpdate(
-        { code: promotion },
-        { $inc: { usedCount: 1 } },
-        { session }
-      );
-
-      await User.findByIdAndUpdate(
-        dataJson.app_user,
-        {
-          $push: {
-            usedPromotions: {
-              promotion: promotion,
-              timesUsed: 1,
-            },
+      const payment = await Payment.create(
+        [
+          {
+            orderId: orderId,
+            userId: dataJson.app_user,
+            amount: dataJson.amount,
+            paymentMethod: "ZaloPay",
+            voucher: promotion?.code,
+            amountDiscount: amountDiscount,
+            appTransactionId: dataJson.app_trans_id,
+            zpTransactionId: dataJson.zp_trans_id,
           },
-        },
+        ],
         { session }
       );
+
+      // await Promotion.findOneAndUpdate(
+      //   { code: promotion.code },
+      //   { $inc: { usedCount: 1 } }
+      //   // { session }
+      // );
+
+      // await User.findByIdAndUpdate(
+      //   dataJson.app_user,
+      //   {
+      //     $push: {
+      //       usedPromotions: {
+      //         promotion: promotion._id,
+      //         timesUsed: 1,
+      //       },
+      //     },
+      //   },
+      //  { session }
+      // );
+
+      const staffs = await User.find(
+        { role: "staff" },
+        { role: 1, FCMTokens: 1 }
+      );
+      let tokens = staffs
+        .map((staff) => staff.FCMTokens)
+        .filter((token) => token !== "");
+
+      for (const userId of arrUserForNoti) {
+        const user = await User.findOne({ _id: userId }, { FCMTokens: 1 });
+
+        if (user) {
+          tokens.push(user.FCMTokens);
+        }
+      }
+
+      const payload = {
+        title: "Thanh Toán ZaloPay Thành Công",
+        body: `Bàn ${tableNumber} đã thanh toán thành công`,
+        data: {
+          paymentId: payment[0]._id.toString(),
+          type: "afterPayment",
+        },
+        image_url:
+          "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentSuccess.jpg",
+      };
+
+      sendNotification(tokens, payload);
 
       await session.commitTransaction();
       session.endSession();
@@ -238,16 +296,29 @@ exports.zaloPaymentCallback = async (req, res, next) => {
 
 exports.cashPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
+  const { tableId } = req.params;
   const { paymentMethod } = req.body;
+  const staff = req.user;
 
-  const totalAmount = orders.reduce((accumulator, order) => {
-    return (
-      accumulator +
-      order.items.reduce((subtotal, item) => {
-        return subtotal + item.menuItemId.price * item.quantity;
-      }, 0)
-    );
-  }, 0);
+  let tokens = [staff.FCMTokens];
+  const tableInUse = await Table.findOne(
+    { _id: tableId },
+    { tableNumber: 1, currentUsers: 1 }
+  );
+
+  for (const userId of tableInUse.currentUsers) {
+    const user = await User.findOne({ _id: userId }, { FCMTokens: 1 });
+
+    if (user) {
+      tokens.push(user.FCMTokens);
+    }
+  }
+
+  const totalAmount = orders
+    .flatMap((order) => order.items)
+    .reduce((acc, cur) => {
+      return (acc += cur.menuItemId.price * cur.quantity);
+    }, 0);
 
   const { promotion, finalTotal = totalAmount } = req;
   const session = await mongoose.startSession();
@@ -262,46 +333,79 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       { session }
     );
 
-    const payment = await Payment.create({
-      orderId: orderIds,
-      userId: req.user._id,
-      amount: finalTotal,
-      voucher: promotion ? promotion.code : undefined,
-      amountDiscount:
-        totalAmount - finalTotal === 0 ? undefined : totalAmount - finalTotal,
-      paymentMethod: paymentMethod,
-      appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
-        Math.random() * 1000000
-      )}`,
-    });
-
-    if (promotion) {
-      await Promotion.findByIdAndUpdate(
-        promotion._id,
-        { $inc: { usedCount: 1 } },
-        { session }
-      );
-      await User.findByIdAndUpdate(
-        req.user._id,
+    const payment = await Payment.create(
+      [
         {
-          $push: {
-            usedPromotions: {
-              promotion: promotion._id,
-              timesUsed: 1,
-            },
-          },
+          orderId: orderIds,
+          userId: req.user._id,
+          amount: finalTotal,
+          voucher: promotion ? promotion.code : undefined,
+          amountDiscount:
+            totalAmount - finalTotal === 0
+              ? undefined
+              : totalAmount - finalTotal,
+          paymentMethod: paymentMethod,
+          appTransactionId: `${moment().format("YYMMDD")}${Math.floor(
+            Math.random() * 1000000
+          )}`,
         },
-        { session }
-      );
-    }
+      ],
+      { session }
+    );
+
+    // if (promotion) {
+    //   await Promotion.findByIdAndUpdate(
+    //     promotion._id,
+    //     { $inc: { usedCount: 1 } },
+    //     { session }
+    //   );
+    //   await User.findByIdAndUpdate(
+    //     req.user._id,
+    //     {
+    //       $push: {
+    //         usedPromotions: {
+    //           promotion: promotion._id,
+    //           timesUsed: 1,
+    //         },
+    //       },
+    //     },
+    //     { session }
+    //   );
+    // }
+
+    const payload = {
+      title: "Thanh Toán Thành Công",
+      body: `Bàn ${tableInUse.tableNumber} đã thanh toán thành công`,
+      data: {
+        paymentId: payment[0]._id.toString(),
+        type: "afterPayment",
+      },
+      image_url:
+        "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentSuccess.jpg",
+    };
+
+    sendNotification(tokens, payload);
+
     await session.commitTransaction();
     session.endSession();
+
     res.status(200).json({
       status: "success",
       data: payment,
       promotionError: req.promotionError,
     });
   } catch (error) {
+    const payload = {
+      title: "Thanh Toán Không Thành Công",
+      body: `Bàn ${tableInUse.tableNumber} thanh toán không thành công`,
+      data: {
+        type: "afterPayment",
+      },
+      image_url:
+        "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentFail.jpg",
+    };
+
+    sendNotification(tokens, payload);
     await session.abortTransaction();
     session.endSession();
     console.log(error);

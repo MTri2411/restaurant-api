@@ -322,50 +322,32 @@ exports.updateStatusTable = catchAsync(async (req, res, next) => {
   // Check required fields
   if (!status) return next(new AppError("Status is required", 400));
 
-  if (status === "lock") {
-    const order = await Order.find({ tableId, paymentStatus: "unpaid" });
+  const table = await Table.findById(tableId, {
+    status: 1,
+    currentUsers: 1,
+  });
 
-    if (order.length > 0) {
+  if (status === "lock") {
+    const unpaidOrders = await Order.find({ tableId, paymentStatus: "unpaid" });
+
+    if (unpaidOrders.length > 0) {
       return next(new AppError("Bàn này chưa thanh toán", 400));
     }
 
-    // Update table
-    const updateStatusTable = await Table.findByIdAndUpdate(
-      tableId,
-      { status, currentUsers: [] },
-      {
-        new: true,
-        runValidators: true,
-        select: "_id tableNumber status tableInUse currentUsers",
-      }
-    );
-
-    if (!updateStatusTable)
-      return next(new AppError("No table found with this ID", 404));
-
-    return res.status(200).json({
-      status: "success",
-      data: updateStatusTable,
-    });
+    table.status = status;
+    table.currentUsers = [];
+  } else if (status === "open") {
+    if (table.status === "open") {
+      return next(new AppError("Bàn đã mở", 400));
+    }
+    table.status = status;
   }
 
-  // Update table
-  const updateStatusTable = await Table.findByIdAndUpdate(
-    tableId,
-    { status },
-    {
-      new: true,
-      runValidators: true,
-      select: "_id tableNumber status tableInUse",
-    }
-  );
-
-  if (!updateStatusTable)
-    return next(new AppError("No table found with this ID", 404));
+  const updatedTable = await table.save();
 
   res.status(200).json({
     status: "success",
-    data: updateStatusTable,
+    data: updatedTable,
   });
 });
 
