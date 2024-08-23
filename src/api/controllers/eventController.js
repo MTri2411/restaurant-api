@@ -69,8 +69,9 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     title,
     body: summary,
     data: {
-      type: "events"
-    }
+      eventId: newEvent._id,
+      type: "events",
+    },
   };
 
   sendNotification(tokens, payload);
