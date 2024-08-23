@@ -57,14 +57,29 @@ exports.getMyReviews = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllReviews = catchAsync(async (req, res, next) => {
-  const reviews = await Review.find().populate({
-    path: "userId",
-    select: "fullName img_avatar_url",
-  });
+  const reviews = await Review.find()
+    .populate({
+      path: "userId",
+      select: "fullName img_avatar_url",
+    })
+    .populate({
+      path: "orderId",
+      select: "createdAt",
+    })
+    .populate({
+      path: "menuItemId",
+      select: "name image_url",
+    });
+
+
+  const formattedReviews = reviews.map((review) => ({
+    ...review.toObject(),
+    orderCreatedAt: review.orderId.createdAt,
+  }));
 
   return res.status(200).json({
     status: "success",
-    data: reviews,
+    data: formattedReviews,
   });
 });
 

@@ -204,18 +204,18 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         { session }
       );
 
-      await User.findByIdAndUpdate(
-        dataJson.app_user,
-        {
-          $push: {
-            usedPromotions: {
-              promotion: promotion,
-              timesUsed: 1,
-            },
-          },
-        },
-        { session }
-      );
+      // await User.findByIdAndUpdate(
+      //   dataJson.app_user,
+      //   {
+      //     $push: {
+      //       usedPromotions: {
+      //         promotion: promotion,
+      //         timesUsed: 1,
+      //       },
+      //     },
+      //   },
+      //   { session }
+      // );
 
       await session.commitTransaction();
       session.endSession();
