@@ -9,26 +9,15 @@ const checkSpellFields = require("../utils/checkSpellFields");
 exports.checkUserInTable = catchAsync(async (req, res, next) => {
   const user = req.user;
   const { tableId } = req.params;
+  
+  if (user.role === "staff") {
+    return next();
+  }
 
   const tableInUse = await Table.findOne(
     { _id: tableId },
-    { tableNumber: 1, currentStaffs: 1, currentUsers: 1 }
-  ).populate({ path: "currentStaffs", select: "fullName" });
-
-  if (user.role === "staff") {
-    const existingStaff = tableInUse.currentStaffs.filter(
-      (staff) => staff._id.toString() === user._id.toString()
-    );
-
-    if (existingStaff.length === 0) {
-      return next(
-        new AppError(
-          `Bàn ${tableInUse.tableNumber} thuộc trách nhiệm của nhân viên ${tableInUse.currentStaffs[0].fullName}`
-        )
-      );
-    }
-    return next();
-  }
+    { tableNumber: 1, currentUsers: 1 }
+  );
 
   if (!tableInUse) {
     return next(new AppError("User not found at the table", 404));
