@@ -413,9 +413,9 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       userPay,
       userOrder,
       items,
+      orderId: eachPayment.orderId.map((order) => order._id),
     };
 
-    delete transform.orderId;
     delete transform.userId;
     return transform;
   });

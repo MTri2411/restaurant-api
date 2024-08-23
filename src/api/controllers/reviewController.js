@@ -28,60 +28,95 @@ exports.filterProfanity = (req, res, next) => {
   const { comment } = req.body;
 
   if (containsProfanity(comment)) {
-    return next(new AppError("Comment contains profanity", 400));
+    return next(new AppError("Bình luận chứa từ ngữ không phù hợp.", 400));
   }
 
   req.body.comment = cleanComment(comment);
   next();
 };
 
-exports.createReview = catchAsync(async (req, res, next) => {
-  checkSpellFields(["rating", "comment", "menuItemId"], req.body);
-  const { rating, comment, menuItemId } = req.body;
+async function updateMenuItemRating(menuItemId) {
+  const reviews = await Review.find({ menuItemId });
+  const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
+  const avgRating = totalRating / reviews.length;
+
+  await MenuItem.findByIdAndUpdate(menuItemId, { rating: avgRating });
+}
+
+exports.getMyReviews = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
 
-  // Tìm payment của user và lấy orderId của đơn hàng gần nhất
-  const payment = await Payment.findOne({ userId }).populate({
-    path: "orderId",
-    populate: { path: "items.menuItem", model: "menuItems" },
+  const reviews = await Review.find({ userId }).populate({
+    path: "menuItemId",
   });
 
-  if (!payment) {
-    return next(
-      new AppError(
-        "Can't review a menu item that you haven't ordered before",
-        400
-      )
-    );
-  }
-  
-  const order = payment.orderId.find((order) =>
-    order.items.some((item) => item.menuItemId.toString() === menuItemId)
-  );
+  return res.status(200).json({
+    status: "success",
+    data: reviews,
+  });
+});
 
+exports.getAllReviews = catchAsync(async (req, res, next) => {
+  const reviews = await Review.find().populate({
+    path: "userId",
+    select: "fullName img_avatar_url",
+  });
+
+  return res.status(200).json({
+    status: "success",
+    data: reviews,
+  });
+});
+
+exports.createReview = catchAsync(async (req, res, next) => {
+  const { menuItemId, rating, comment, orderId } = req.body;
+  const userId = req.user._id;
+
+  const order = await Order.findById(orderId);
   if (!order) {
-    return next(new AppError("The menu item is not found in your orders", 400));
+    return res
+      .status(404)
+      .json({ status: "fail", message: "Order not found." });
   }
 
-  // Tạo review mới
-  const review = await Review.create({
-    userId,
+  if (order.userId.toString() !== userId.toString()) {
+    return res.status(403).json({
+      status: "fail",
+      message: "Chỉ người đặt hàng mới có thể đánh giá món ăn.",
+    });
+  }
+
+  const itemInOrder = order.items.some(
+    (item) => item.menuItemId.toString() === menuItemId.toString()
+  );
+  if (!itemInOrder) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Món ăn không thuộc đơn hàng này.",
+    });
+  }
+
+  const existingReview = await Review.findOne({ userId, menuItemId, orderId });
+  if (existingReview) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Bạn đã đánh giá món ăn này trong đơn hàng này.",
+    });
+  }
+
+  const newReview = await Review.create({
     menuItemId,
+    userId,
+    orderId,
     rating,
     comment,
   });
 
-  const reviews = await Review.find({ menuItemId });
-  const averageRating =
-    reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length;
+  await updateMenuItemRating(menuItemId);
 
-  await MenuItem.findByIdAndUpdate(menuItemId, { rating: averageRating });
-
-  const populatedReview = await Review.findById(review._id).populate("order");
-
-  res.status(201).json({
+  return res.status(201).json({
     status: "success",
-    data: populatedReview,
+    data: newReview,
   });
 });
 

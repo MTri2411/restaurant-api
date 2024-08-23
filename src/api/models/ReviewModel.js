@@ -14,6 +14,12 @@ const reviewSchema = new mongoose.Schema(
       required: [true, "menu item id is required!"],
     },
 
+    orderId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "orders", 
+      required: [true, "order id is required!"],
+    },
+
     rating: {
       type: Number,
       required: [true, "rating is required!"],

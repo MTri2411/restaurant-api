@@ -85,10 +85,9 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   if (FCMToken) {
-    if (user.FCMTokens) {
-      user.FCMTokens = undefined;
-    }
-    user.FCMTokens = FCMToken;
+    user.FCMTokens = user.FCMTokens
+      ? [...user.FCMTokens, FCMToken]
+      : [FCMToken];
   }
 
   const token = signToken(user._id);

@@ -158,28 +158,50 @@ exports.deleteMenuItem = catchAsync(async (req, res, next) => {
 });
 
 exports.getMenuItemDetails = catchAsync(async (req, res, next) => {
-  // Hiển thị chi tiết menu item kèm theo reviews
   const { menuItemId } = req.params;
 
-  const menuItem = await MenuItem.findById(menuItemId).populate({
-    path: "options",
-    select: "name image_url",
-  });
+  const menuItem = await MenuItem.findById(menuItemId)
+    .populate({ path: "options", select: "name image_url" })
+    .populate({ path: "category_id", select: "name engName" })
+    .lean();
 
   if (!menuItem) {
     return next(new AppError("No menu item found with this ID", 404));
   }
 
-  const reviews = await Review.find({ menuItemId }).populate({
-    path: "userId",
-    select: "fullName",
+  const reviews = await Review.find({ menuItemId })
+    .populate({
+      path: "orderId",
+      select: "createdAt items",
+    })
+    .populate({ path: "userId", select: "fullName email img_avatar_url" })
+    .sort({ createdAt: "desc" })
+    .lean();
+
+  reviews.forEach((review) => {
+    review.orderCreatedAt = review.orderId ? review.orderId.createdAt : null;
+    review.orderOptions = [];
+
+    if (review.orderId && review.orderId.items) {
+      const item = review.orderId.items.find(
+        (item) => item.menuItemId && item.menuItemId.toString() === menuItemId
+      );
+      if (item) {
+        review.orderOptions = item.options || [];
+      }
+    }
+
+    if (review.orderId) {
+      delete review.orderId.items;
+    }
   });
 
   res.status(200).json({
-    success: "success",
+    status: "success",
     data: {
       menuItem,
       reviews,
+      reviewCount: reviews.length,
     },
   });
 });
