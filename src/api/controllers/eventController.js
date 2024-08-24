@@ -69,7 +69,7 @@ exports.createEvent = catchAsync(async (req, res, next) => {
     title,
     body: summary,
     data: {
-      eventId: newEvent._id,
+      eventId: newEvent._id.toString(),
       type: "events",
     },
   };

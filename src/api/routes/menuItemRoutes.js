@@ -5,20 +5,21 @@ const { upload } = require("../services/cloudinaryServices");
 
 const router = expresss.Router({ mergeParams: true });
 
+router.route("/").get(menuItemController.getAllMenuItem);
+
+router
+  .route("/get-by-category/:categoryId")
+  .get(menuItemController.getMenuItemsByCategoryId);
+
 router.use(authController.protect);
 
 router
   .route("/")
-  .get(menuItemController.getAllMenuItem)
   .post(
     authController.restrictTo("admin"),
     upload.single("image_url"),
     menuItemController.createMenuItem
   );
-
-router
-  .route("/get-by-category/:categoryId")
-  .get(menuItemController.getMenuItemsByCategoryId);
 
 router
   .route("/:menuItemId")

@@ -8,11 +8,12 @@ const router = express.Router();
 // redirect to menuItem router (mergeParams)
 router.use("/:categoryId/menu-items", menuItemRouter);
 
+router.route("/").get(categoryController.getCategories);
+
 router.use(authController.protect);
 
 router
   .route("/")
-  .get(categoryController.getCategories)
   .post(authController.restrictTo("admin"), categoryController.createCategory);
 
 router
