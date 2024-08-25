@@ -71,20 +71,7 @@ const validatePayment = async (req, res, next) => {
 
 exports.zaloPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
-
   const { tableId } = req.params;
-
-  const table = await Table.findById(tableId, {
-    tableNumber: 1,
-    currentUsers: 1,
-  });
-
-  let arrUserForNoti = [];
-  if (!req.query.userId) {
-    arrUserForNoti.push(...table.currentUsers);
-  } else if (req.query.userId === "true") {
-    arrUserForNoti.push(req.user._id);
-  }
 
   let items = [];
   orders
@@ -122,10 +109,11 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
   const amount = finalTotal;
 
   const orderId = orders.map((order) => order._id);
+  const arrUserIdForNoti = orders.map((order) => order.userId);
   const embed_data = {
     orderId,
-    tableNumber: table.tableNumber,
-    arrUserForNoti,
+    tableId,
+    arrUserIdForNoti,
     promotion: promotion
       ? { _id: promotion._id, code: promotion.code }
       : undefined,
@@ -180,117 +168,268 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
   res.status(200).json(result.data);
 });
 
+// exports.zaloPaymentCallback = async (req, res, next) => {
+//   let result = {};
+//   const session = await mongoose.startSession();
+
+//   try {
+//     let dataStr = req.body.data;
+//     let reqMac = req.body.mac;
+
+//     let mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
+
+//     // kiểm tra callback hợp lệ (đến từ ZaloPay server)
+//     if (reqMac !== mac) {
+//       // callback không hợp lệ
+//       result.return_code = -1;
+//       result.return_message = "mac not equal";
+//     } else {
+//       session.startTransaction();
+//       // thanh toán thành công
+//       // merchant cập nhật trạng thái cho đơn hàng
+//       let dataJson = JSON.parse(dataStr, config.key2);
+//       const orderId = JSON.parse(dataJson.embed_data).orderId;
+//       const tableId = JSON.parse(dataJson.embed_data).tableId;
+//       const arrUserIdForNoti = JSON.parse(dataJson.embed_data).arrUserIdForNoti;
+//       const promotion = JSON.parse(dataJson.embed_data).promotion;
+//       const amountDiscount = JSON.parse(dataJson.embed_data).amountDiscount;
+
+//       await Order.updateMany(
+//         { _id: { $in: orderId } },
+//         { paymentStatus: "paid" },
+//         { session }
+//       );
+//       const payment = await Payment.create(
+//         [
+//           {
+//             orderId: orderId,
+//             userId: dataJson.app_user,
+//             amount: dataJson.amount,
+//             paymentMethod: "ZaloPay",
+//             voucher: promotion?.code,
+//             amountDiscount: amountDiscount,
+//             appTransactionId: dataJson.app_trans_id,
+//             zpTransactionId: dataJson.zp_trans_id,
+//           },
+//         ],
+//         { session }
+//       );
+
+//       // await Promotion.findOneAndUpdate(
+//       //   { code: promotion.code },
+//       //   { $inc: { usedCount: 1 } }
+//       //   // { session }
+//       // );
+
+//       // await User.findByIdAndUpdate(
+//       //   dataJson.app_user,
+//       //   {
+//       //     $push: {
+//       //       usedPromotions: {
+//       //         promotion: promotion._id,
+//       //         timesUsed: 1,
+//       //       },
+//       //     },
+//       //   },
+//       //  { session }
+//       // );
+
+//       const staffs = await User.find(
+//         { role: "staff" },
+//         { role: 1, FCMTokens: 1 }
+//       );
+
+//       let tokens = staffs
+//         .map((staff) => staff.FCMTokens)
+//         .filter((token) => token !== "");
+
+//       for (const userId of arrUserIdForNoti) {
+//         const user = await User.findOne({ _id: userId }, { FCMTokens: 1 });
+
+//         if (user) {
+//           tokens.push(user.FCMTokens);
+//         }
+//       }
+
+//       const payload = {
+//         title: "Thanh Toán ZaloPay Thành Công",
+//         body: `Bàn ${tableNumber} đã thanh toán thành công`,
+//         data: {
+//           paymentId: payment[0]._id.toString(),
+//           type: "afterPayment",
+//         },
+//         image_url:
+//           "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentSuccess.jpg",
+//       };
+
+//       sendNotification(tokens, payload);
+
+//       await session.commitTransaction();
+//       session.endSession();
+
+//       result.return_code = 1;
+//       result.return_message = "success";
+//     }
+//   } catch (ex) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     console.error("Error processing ZaloPay callback:", ex);
+
+//     result.return_code = 0; // ZaloPay server sẽ callback lại (tối đa 3 lần)
+//     result.return_message = ex.message;
+//   }
+
+//   // thông báo kết quả cho ZaloPay server
+//   res.json(result);
+// };
+
 exports.zaloPaymentCallback = async (req, res, next) => {
   let result = {};
-  const session = await mongoose.startSession();
 
-  try {
-    let dataStr = req.body.data;
-    let reqMac = req.body.mac;
+  let dataStr = req.body.data;
+  let mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
 
-    let mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
+  let reqMac = req.body.mac;
 
-    // kiểm tra callback hợp lệ (đến từ ZaloPay server)
-    if (reqMac !== mac) {
-      // callback không hợp lệ
-      result.return_code = -1;
-      result.return_message = "mac not equal";
-    } else {
-      session.startTransaction();
-      // thanh toán thành công
-      // merchant cập nhật trạng thái cho đơn hàng
-      let dataJson = JSON.parse(dataStr, config.key2);
-      const orderId = JSON.parse(dataJson.embed_data).orderId;
-      const tableNumber = JSON.parse(dataJson.embed_data).tableNumber;
-      const arrUserForNoti = JSON.parse(dataJson.embed_data).arrUserForNoti;
-      const promotion = JSON.parse(dataJson.embed_data).promotion;
-      const amountDiscount = JSON.parse(dataJson.embed_data).amountDiscount;
+  // Kiểm tra callback hợp lệ (đến từ ZaloPay server)
+  if (reqMac !== mac) {
+    // callback không hợp lệ
+    result.return_code = -1;
+    result.return_message = "mac not equal";
 
-      await Order.updateMany(
-        { _id: { $in: orderId } },
-        { paymentStatus: "paid" },
-        { session }
-      );
-      const payment = await Payment.create(
-        [
-          {
-            orderId: orderId,
-            userId: dataJson.app_user,
-            amount: dataJson.amount,
-            paymentMethod: "ZaloPay",
-            voucher: promotion?.code,
-            amountDiscount: amountDiscount,
-            appTransactionId: dataJson.app_trans_id,
-            zpTransactionId: dataJson.zp_trans_id,
-          },
-        ],
-        { session }
-      );
+    return res.json(result);
+  }
 
-      // await Promotion.findOneAndUpdate(
-      //   { code: promotion.code },
-      //   { $inc: { usedCount: 1 } }
-      //   // { session }
-      // );
+  // Thanh toán thành công
+  // Merchant cập nhật trạng thái cho đơn hàng
+  let dataJson = JSON.parse(dataStr, config.key2);
+  const embed_data = JSON.parse(dataJson.embed_data);
+  const orderId = embed_data.orderId;
+  const tableId = embed_data.tableId;
+  const arrUserIdForNoti = embed_data.arrUserIdForNoti;
+  const promotion = embed_data.promotion;
+  const amountDiscount = embed_data.amountDiscount;
 
-      // await User.findByIdAndUpdate(
-      //   dataJson.app_user,
-      //   {
-      //     $push: {
-      //       usedPromotions: {
-      //         promotion: promotion._id,
-      //         timesUsed: 1,
-      //       },
-      //     },
-      //   },
-      //  { session }
-      // );
+  // Push FCMTokens vào array tokens và query table (lấy tableNumber)
+  const [table, staffs] = await Promise.all([
+    Table.findById(tableId, { tableNumber: 1 }),
+    User.find({ role: "staff" }, { role: 1, FCMTokens: 1 }),
+  ]);
 
-      const staffs = await User.find(
-        { role: "staff" },
-        { role: 1, FCMTokens: 1 }
-      );
-      let tokens = staffs
-        .map((staff) => staff.FCMTokens)
-        .filter((token) => token !== "");
+  let userName;
+  let tokens = staffs
+    .map((staff) => staff.FCMTokens)
+    .filter((token) => token !== "");
 
-      for (const userId of arrUserForNoti) {
-        const user = await User.findOne({ _id: userId }, { FCMTokens: 1 });
+  for (const userId of arrUserIdForNoti) {
+    const user = await User.findOne(
+      { _id: userId },
+      { fullName: 1, FCMTokens: 1 }
+    );
 
-        if (user) {
-          tokens.push(user.FCMTokens);
-        }
-      }
-
-      const payload = {
-        title: "Thanh Toán ZaloPay Thành Công",
-        body: `Bàn ${tableNumber} đã thanh toán thành công`,
-        data: {
-          paymentId: payment[0]._id.toString(),
-          type: "afterPayment",
-        },
-        image_url:
-          "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentSuccess.jpg",
-      };
-
-      sendNotification(tokens, payload);
-
-      await session.commitTransaction();
-      session.endSession();
-
-      result.return_code = 1;
-      result.return_message = "success";
+    if (arrUserIdForNoti.length === 1) {
+      userName = user.fullName;
     }
+
+    if (user) {
+      tokens.push(user.FCMTokens);
+    }
+  }
+
+  // Start Transaction
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    await Order.updateMany(
+      { _id: { $in: orderId } },
+      { paymentStatus: "paid" },
+      { session }
+    );
+
+    const payment = await Payment.create(
+      [
+        {
+          orderId: orderId,
+          userId: dataJson.app_user,
+          amount: dataJson.amount,
+          paymentMethod: "ZaloPay",
+          voucher: promotion?.code,
+          amountDiscount: amountDiscount,
+          appTransactionId: dataJson.app_trans_id,
+          zpTransactionId: dataJson.zp_trans_id,
+        },
+      ],
+      { session }
+    );
+
+    // await Promotion.findOneAndUpdate(
+    //   { code: promotion.code },
+    //   { $inc: { usedCount: 1 } }
+    //   // { session }
+    // );
+
+    // await User.findByIdAndUpdate(
+    //   dataJson.app_user,
+    //   {
+    //     $push: {
+    //       usedPromotions: {
+    //         promotion: promotion._id,
+    //         timesUsed: 1,
+    //       },
+    //     },
+    //   },
+    //  { session }
+    // );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    const body =
+      arrUserIdForNoti.length === 1
+        ? `Khách hàng ${userName}, bàn ${table.tableNumber} đã thanh toán thành công`
+        : `Tổng đơn bàn ${table.tableNumber} đã thanh toán thành công`;
+    const payload = {
+      title: "Thanh Toán ZaloPay Thành Công",
+      body,
+      data: {
+        paymentId: payment[0]._id.toString(),
+        type: "afterPayment",
+      },
+      image_url:
+        "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentSuccess.jpg",
+    };
+
+    sendNotification(tokens, payload);
+
+    result.return_code = 1;
+    result.return_message = "success";
   } catch (ex) {
     await session.abortTransaction();
     session.endSession();
+
+    const body =
+      arrUserIdForNoti.length === 1
+        ? `Khách hàng ${userName}, bàn ${table.tableNumber} thanh toán không thành công`
+        : `Tổng đơn bàn ${table.tableNumber} thanh toán không thành công`;
+    const payload = {
+      title: "Thanh Toán ZaloPay Không Thành Công",
+      body,
+      data: {
+        type: "afterPayment",
+      },
+      image_url:
+        "https://res.cloudinary.com/dexkjvage/image/upload/v1724397886/restaurant_image/paymentFail.jpg",
+    };
+
+    sendNotification(tokens, payload);
     console.error("Error processing ZaloPay callback:", ex);
 
     result.return_code = 0; // ZaloPay server sẽ callback lại (tối đa 3 lần)
     result.return_message = ex.message;
   }
 
-  // thông báo kết quả cho ZaloPay server
+  // Thông báo kết quả cho ZaloPay server
   res.json(result);
 };
 
@@ -373,6 +512,9 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     //   );
     // }
 
+    await session.commitTransaction();
+    session.endSession();
+
     const payload = {
       title: "Thanh Toán Thành Công",
       body: `Bàn ${tableInUse.tableNumber} đã thanh toán thành công`,
@@ -386,15 +528,15 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
 
     sendNotification(tokens, payload);
 
-    await session.commitTransaction();
-    session.endSession();
-
     res.status(200).json({
       status: "success",
       data: payment,
       promotionError: req.promotionError,
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     const payload = {
       title: "Thanh Toán Không Thành Công",
       body: `Bàn ${tableInUse.tableNumber} thanh toán không thành công`,
@@ -406,8 +548,6 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     };
 
     sendNotification(tokens, payload);
-    await session.abortTransaction();
-    session.endSession();
     console.log(error);
     return next(new AppError("Failed to process payment", 500));
   }
@@ -422,7 +562,7 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
     .filter((token) => token !== "");
 
   const payload = {
-    title: "Thông báo thanh toán",
+    title: "Thông Báo Thanh Toán",
     body: `Bàn ${tableNumber}`,
     data: {
       tableId,

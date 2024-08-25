@@ -9,13 +9,13 @@ const checkSpellFields = require("../utils/checkSpellFields");
 exports.checkUserInTable = catchAsync(async (req, res, next) => {
   const user = req.user;
   const { tableId } = req.params;
-  
+
   if (user.role === "staff") {
     return next();
   }
 
   const tableInUse = await Table.findOne(
-    { _id: tableId },
+    { _id: tableId, currentUsers: user._id },
     { tableNumber: 1, currentUsers: 1 }
   );
 
