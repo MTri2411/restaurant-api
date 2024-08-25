@@ -10,20 +10,20 @@ const Handlebars = require("handlebars");
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 
-// async function updatePromotionStatus() {
-//   const now = moment.tz("Asia/Ho_Chi_Minh").toDate();
-//   await Promotion.updateMany(
-//     {
-//       $or: [
-//         { endDate: { $lt: now } },
-//         { $expr: { $lte: ["$maxUsage", "$usedCount"] } },
-//       ],
-//     },
-//     { isActive: false }
-//   );
-// }
+async function updatePromotionStatus() {
+  const now = moment.tz("Asia/Ho_Chi_Minh").toDate();
+  await Promotion.updateMany(
+    {
+      $or: [
+        { endDate: { $lt: now } },
+        { $expr: { $lte: ["$maxUsage", "$usedCount"] } },
+      ],
+    },
+    { isActive: false }
+  );
+}
 
-// cron.schedule("0 0 * * *", updatePromotionStatus);
+cron.schedule("0 0 * * *", updatePromotionStatus);
 
 exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const promotionCode = req.query.promotionCode || req.body.promotionCode;
@@ -61,17 +61,17 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
 
   if (userId) {
     const user = await User.findById(userId);
-    const usedPromotion = user.usedPromotions.find(
-      (usedPromotion) =>
-        usedPromotion.promotion.toString() === promotion._id.toString()
+    const promotionUsed = user.promotionsUsed.find(
+      (p) =>
+        p.promotionCode === promotionCode && p.version === promotion.version
     );
 
     if (
-      usedPromotion &&
-      usedPromotion.timesUsed >= promotion.usageLimitPerUser
+      promotionUsed &&
+      promotionUsed.usageCount >= promotion.usageLimitPerUser
     ) {
       req.promotionError =
-        "Mã khuyến mãi đã hết lượt sử dụng cho tài khoản của bạn";
+        "Mã khuyến mãi đã hết lượt sử dụng cho tài khoản này";
       return next();
     }
   }
@@ -127,6 +127,8 @@ exports.getPromotions = catchAsync(async (req, res, next) => {
   }
 
   const promotions = await Promotion.find(query);
+
+  promotions.sort((a, b) => b.discount - a.discount);
 
   res.status(200).json({
     status: "success",
@@ -280,10 +282,6 @@ exports.createPromotion = catchAsync(async (req, res, next) => {
       (req.body[key] == null || req.body[key] === "") && delete req.body[key]
   );
 
-  req.body.usedCount = 0;
-  req.body.isActive = true;
-
-  console.log(req.body);
   const promotion = await Promotion.create(req.body);
 
   res.status(201).json({
@@ -308,6 +306,24 @@ exports.updatePromotion = catchAsync(async (req, res, next) => {
   if (!promotion) {
     return next(new AppError("Promotion not found", 404));
   }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      promotion,
+    },
+  });
+});
+
+exports.resetPromotionVersion = catchAsync(async (req, res, next) => {
+  const promotion = await Promotion.findById(req.params.id);
+
+  if (!promotion) {
+    return next(new AppError("Promotion not found", 404));
+  }
+
+  promotion.version += 1;
+  await promotion.save({ validateBeforeSave: false });
 
   res.status(200).json({
     status: "success",
@@ -353,49 +369,7 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.resetAllPromotions = catchAsync(async (req, res, next) => {
-  const now = new Date();
-
-  const expiredPromotions = await Promotion.find({
-    $or: [
-      { endDate: { $lt: now } },
-      { $expr: { $eq: ["$usedCount", "$maxUsage"] } },
-    ],
-  });
-
-  if (expiredPromotions.length === 0) {
-    return next(new AppError("No promotions to reset", 404));
-  }
-
-  const updates = expiredPromotions.map((promotion) => {
-    const updateFields = {};
-    const newEndDate = new Date();
-
-    if (promotion.endDate < now) {
-      newEndDate.setDate(newEndDate.getDate() + 7);
-      newEndDate.setHours(23, 59, 59, 999);
-      updateFields.endDate = newEndDate;
-    }
-
-    if (promotion.usedCount === promotion.maxUsage) {
-      updateFields.maxUsage = promotion.maxUsage + 10;
-    }
-
-    if (promotion.endDate < now && promotion.usedCount === promotion.maxUsage) {
-      updateFields.isActive = true;
-    }
-
-    return Promotion.updateOne({ _id: promotion._id }, { $set: updateFields });
-  });
-
-  await Promise.all(updates);
-
-  res.status(200).json({
-    status: "success",
-    message: "Expired promotions have been updated",
-    data: expiredPromotions,
-  });
-});
+exports.resetAllPromotions = catchAsync(async (req, res, next) => {});
 
 exports.deletePromotion = catchAsync(async (req, res, next) => {
   const promotion = await Promotion.findById(req.params.id);
@@ -421,5 +395,18 @@ exports.deletePromotion = catchAsync(async (req, res, next) => {
     status: "success",
     message: "Promotion deleted successfully",
     data: null,
+  });
+});
+
+// Lấy tất cả thanh toán có trường voucher
+exports.getPaymentsWithVoucher = catchAsync(async (req, res, next) => {
+  const payments = await Payment.find({ voucher: { $ne: null } });
+
+  res.status(200).json({
+    status: "success",
+    results: payments.length,
+    data: {
+      payments,
+    },
   });
 });

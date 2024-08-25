@@ -365,24 +365,30 @@ exports.zaloPaymentCallback = async (req, res, next) => {
       { session }
     );
 
-    // await Promotion.findOneAndUpdate(
-    //   { code: promotion.code },
-    //   { $inc: { usedCount: 1 } }
-    //   // { session }
-    // );
+    if (promotion) {
+      await Promotion.findOneAndUpdate(
+        { code: promotion.code },
+        { $inc: { usedCount: 1 } }
+      );
 
-    // await User.findByIdAndUpdate(
-    //   dataJson.app_user,
-    //   {
-    //     $push: {
-    //       usedPromotions: {
-    //         promotion: promotion._id,
-    //         timesUsed: 1,
-    //       },
-    //     },
-    //   },
-    //  { session }
-    // );
+      const promotionData = await Promotion.findById(promotion._id, {
+        version: 1,
+      });
+
+      await User.findByIdAndUpdate(
+        dataJson.app_user,
+        {
+          $push: {
+            promotionsUsed: {
+              promotionCode: promotion.code,
+              usageCount: 1,
+              version: promotionData.version,
+            },
+          },
+        },
+        { session }
+      );
+    }
 
     await session.commitTransaction();
     session.endSession();
@@ -498,6 +504,24 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       await Promotion.findOneAndUpdate(
         { code: promotion.code },
         { $inc: { usedCount: 1 } }
+      );
+
+      const promotionData = await Promotion.findById(promotion._id, {
+        version: 1,
+      });
+
+      await User.findByIdAndUpdate(
+        req.user._id,
+        {
+          $push: {
+            promotionsUsed: {
+              promotionCode: promotion.code,
+              usageCount: 1,
+              version: promotionData.version,
+            },
+          },
+        },
+        { session }
       );
     }
 

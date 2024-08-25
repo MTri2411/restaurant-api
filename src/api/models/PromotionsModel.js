@@ -64,6 +64,8 @@ const promotionSchema = new mongoose.Schema(
       type: Number,
     },
 
+    version: { type: Number, default: 1 },
+
     startDate: {
       type: Date,
       required: [true, "A promotion must have a start date!"],

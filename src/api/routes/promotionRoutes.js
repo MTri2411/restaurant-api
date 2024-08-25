@@ -4,6 +4,9 @@ const authController = require("../controllers/authController");
 
 const router = express.Router();
 router
+  .route("/payments-with-voucher")
+  .get(promotionsController.getPaymentsWithVoucher);
+router
   .route("/:id")
   .get(authController.protect, promotionsController.getPromotion);
 router
@@ -19,4 +22,8 @@ router
   .route("/update-status/:id")
   .patch(promotionsController.updatePromotionStatus);
 router.route("/reset-promotion").post(promotionsController.resetAllPromotions);
+router
+  .route("/reset-promotion-version/:id")
+  .post(promotionsController.resetPromotionVersion);
+
 module.exports = router;

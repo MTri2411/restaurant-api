@@ -57,21 +57,22 @@ const userSchema = new Schema({
     type: Boolean,
     default: false,
   },
-  points: {
+  reputationPoints: {
     type: Number,
     default: 0,
   },
 
-  usedPromotions: [
+  promotionsUsed: [
     {
-      promotion: {
-        type: mongoose.Schema.ObjectId,
-        ref: "Promotion",
+      promotionCode: {
+        type: String,
+        required: true,
       },
-      timesUsed: {
+      usageCount: {
         type: Number,
         default: 0,
       },
+      version: { type: Number, required: true },
     },
   ],
 

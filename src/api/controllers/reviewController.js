@@ -60,7 +60,7 @@ exports.getAllReviews = catchAsync(async (req, res, next) => {
   const reviews = await Review.find()
     .populate({
       path: "userId",
-      select: "fullName img_avatar_url",
+      select: "fullName img_avatar_url reputationPoints",
     })
     .populate({
       path: "orderId",
@@ -70,7 +70,6 @@ exports.getAllReviews = catchAsync(async (req, res, next) => {
       path: "menuItemId",
       select: "name image_url",
     });
-
 
   const formattedReviews = reviews.map((review) => ({
     ...review.toObject(),
@@ -128,6 +127,7 @@ exports.createReview = catchAsync(async (req, res, next) => {
   });
 
   await updateMenuItemRating(menuItemId);
+  await User.findByIdAndUpdate(userId, { $inc: { reputationPoints: 10 } });
 
   return res.status(201).json({
     status: "success",

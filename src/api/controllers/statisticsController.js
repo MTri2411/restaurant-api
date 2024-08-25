@@ -4,6 +4,7 @@ const User = require("../models/UserModel");
 const Payment = require("../models/PaymentModel");
 const Order = require("../models/OrderModel");
 const Review = require("../models/ReviewModel");
+const Promotion = require("../models/PromotionsModel");
 const { use } = require("../routes/orderRoutes");
 
 const getStatistics = async (
@@ -392,11 +393,67 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
   });
 });
 
-// Hiệu quả của mã khuyến mãi
-exports.getPromotionStatistics = catchAsync(async (req, res, next) => {});
+exports.getPromotionUsageStatistics = catchAsync(async (req, res, next) => {
+  const promotionStats = await Payment.aggregate([
+    {
+      $match: {
+        voucher: { $exists: true, $ne: null }, // Lọc các thanh toán có chứa mã khuyến mãi
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "userDetails",
+      },
+    },
+    {
+      $unwind: "$userDetails",
+    },
+    {
+      $group: {
+        _id: "$voucher",
+        totalDiscount: { $sum: "$amountDiscount" }, // Tính tổng số tiền được giảm từ mã khuyến mãi
+        payments: {
+          $push: {
+            paymentId: "$_id",
+            userId: "$userId",
+            fullName: "$userDetails.fullName", // Lấy fullName từ userDetails
+            orderId: "$orderId",
+            discountAmount: "$amountDiscount",
+            paymentDate: "$createdAt", // Lấy ngày từ paymentId
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        promotionCode: "$_id",
+        totalDiscount: 1,
+        payments: {
+          $sortArray: {
+            input: "$payments",
+            sortBy: { paymentDate: -1 }, // Sắp xếp theo ngày thanh toán giảm dần
+          },
+        },
+      },
+    },
+  ]);
 
-// Số lượng mã khuyến mãi sử dụng
-exports.getPromotionUsageStatistics = catchAsync(async (req, res, next) => {});
+  if (!promotionStats.length) {
+    return res.status(404).json({
+      status: "fail",
+      message: "No payments found for any promotion codes",
+    });
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: promotionStats,
+  });
+});
 
 // Top 5 khách hàng có giá trị cao nhất theo ngày/tuần/tháng/năm
 exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
@@ -458,44 +515,58 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getReviewStatistics = catchAsync(async (req, res, next) => {
-  // Lấy tất cả các review từ cơ sở dữ liệu
-  const reviews = await Review.find();
+exports.getPromotionStatistics = catchAsync(async (req, res, next) => {
+  const promotionCode = req.params.promotionCode; // Lấy mã khuyến mãi từ request params
 
-  // Tính tổng số review
-  const totalReviews = reviews.length;
+  const promotionStats = await Payment.aggregate([
+    {
+      $match: {
+        voucher: promotionCode, // Lọc các thanh toán có chứa mã khuyến mãi
+      },
+    },
+    {
+      $group: {
+        _id: "$voucher",
+        totalDiscount: { $sum: "$amountDiscount" }, // Tính tổng số tiền được giảm từ mã khuyến mãi
+        payments: {
+          $push: {
+            paymentId: "$_id",
+            userId: "$userId",
+            orderId: "$orderId",
+            discountAmount: "$amountDiscount",
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        promotionCode: "$_id",
+        totalDiscount: 1,
+        payments: 1,
+      },
+    },
+  ]);
 
-  // Tính điểm trung bình của các review
-  const averageRating =
-    reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews;
+  if (!promotionStats.length) {
+    return res.status(404).json({
+      status: "fail",
+      message: "No payments found for this promotion code",
+    });
+  }
 
-  // Đếm số lượng review theo từng mức điểm
-  const ratingCounts = reviews.reduce((counts, review) => {
-    counts[review.rating] = (counts[review.rating] || 0) + 1;
-    return counts;
-  }, {});
-
-  // Đếm số lượng review theo từng tháng
-  const monthlyCounts = reviews.reduce((counts, review) => {
-    const month = new Date(review.createdAt).toISOString().slice(0, 7); // YYYY-MM
-    counts[month] = (counts[month] || 0) + 1;
-    return counts;
-  }, {});
-
-  // Trả về kết quả
   res.status(200).json({
     status: "success",
-    data: {
-      totalReviews,
-      averageRating,
-      ratingCounts,
-      monthlyCounts,
-    },
+    data: promotionStats[0],
   });
 });
 
 exports.getStatistics = catchAsync(async (req, res, next) => {
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const startOfMonth = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    1
+  );
   const startOfYear = new Date(new Date().getFullYear(), 0, 1);
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);

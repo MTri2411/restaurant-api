@@ -174,7 +174,7 @@ exports.getMenuItemDetails = catchAsync(async (req, res, next) => {
       path: "orderId",
       select: "createdAt items",
     })
-    .populate({ path: "userId", select: "fullName email img_avatar_url" })
+    .populate({ path: "userId", select: "fullName email img_avatar_url reputationPoints" })
     .sort({ createdAt: "desc" })
     .lean();
 

@@ -43,7 +43,5 @@ router
   .get(statisticsController.getMostValuableCustomer);
 
 router.route("/daily-statistics").get(statisticsController.getStatistics);
-router
-  .route("/review-statistics")
-  .get(statisticsController.getReviewStatistics);
+
 module.exports = router;
