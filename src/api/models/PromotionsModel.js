@@ -64,12 +64,6 @@ const promotionSchema = new mongoose.Schema(
       type: Number,
     },
 
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: false,
-    },
-
     startDate: {
       type: Date,
       required: [true, "A promotion must have a start date!"],
@@ -95,6 +89,12 @@ const promotionSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+promotionSchema.virtual("users", {
+  ref: "User",
+  localField: "_id",
+  foreignField: "promotions",
+});
 
 promotionSchema.pre("save", function (next) {
   if (this.endDate <= this.startDate) {

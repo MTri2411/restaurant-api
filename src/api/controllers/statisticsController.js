@@ -502,7 +502,6 @@ exports.getDailyStatistics = catchAsync(async (req, res, next) => {
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  // Match condition for the current month
   const matchCondition = {
     createdAt: {
       $gte: startOfMonth,
@@ -510,21 +509,19 @@ exports.getDailyStatistics = catchAsync(async (req, res, next) => {
     },
   };
 
-  // Group by day
   const groupByDay = {
     _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
     totalOrder: { $sum: 1 },
     totalRevenue: { $sum: "$amount" },
   };
 
-  // Aggregation for orders and revenue
   const dailyStats = await Payment.aggregate([
     { $match: matchCondition },
     { $group: groupByDay },
     { $sort: { _id: 1 } },
   ]);
 
-  // Format the response
+
   const orderData = dailyStats.map((stat) => ({
     date: stat._id,
     totalOrder: stat.totalOrder,
@@ -534,6 +531,8 @@ exports.getDailyStatistics = catchAsync(async (req, res, next) => {
     date: stat._id,
     totalRevenue: stat.totalRevenue,
   }));
+
+
 
   res.status(200).json({
     status: "success",

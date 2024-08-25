@@ -25,7 +25,7 @@ router
 router.route("/register").post(userController.registerUser);
 router.route("/verify").post(userController.verifyEmail);
 router.route("/login").post(userController.login);
-router.route("/logout").get(authController.protect, userController.logout);
+router.route("/logout").post(userController.logout);
 router.route("/forgot-password").post(userController.forgotPassword);
 router.route("/reset-password/:token").patch(userController.resetPassword);
 router.route("/resend-verification").post(userController.resendVerification);

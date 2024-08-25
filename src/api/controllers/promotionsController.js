@@ -34,8 +34,6 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     return next();
   }
 
-  const user = await User.findById(userId).populate("usedPromotions.promotion");
-
   const promotion = await Promotion.findOne({
     code: promotionCode,
     startDate: { $lte: new Date() },
@@ -44,31 +42,36 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   });
 
   if (!promotion) {
+    req.promotionError = "Mã khuyến mãi không hợp lệ";
+    return next();
+  }
+
+  if (!promotion) {
     const expiredPromotion = await Promotion.findOne({ code: promotionCode });
     req.promotionError = expiredPromotion
-      ? `Invalid promotion code. Expiry date: ${expiredPromotion.endDate.toISOString()}, Status: ${
-          expiredPromotion.isActive ? "Active" : "Inactive"
-        }`
-      : "Invalid promotion code.";
+      ? `Mã khuyến mãi không hợp lệ. Mã này đã hết hạn vào ${expiredPromotion.endDate.toISOString()}`
+      : "Mã khuyến mãi không hợp lệ";
     return next();
   }
 
   if (promotion.maxUsage && promotion.usedCount >= promotion.maxUsage) {
-    req.promotionError = "Promotion code has reached its usage limit";
+    req.promotionError = "Mã khuyến mãi đã hết lượt sử dụng";
     return next();
   }
 
-  if (promotion.usageLimitPerUser) {
-    const userPromotion = user.usedPromotions.find(
-      (usedPromotion) => usedPromotion.promotion.code === promotionCode
+  if (userId) {
+    const user = await User.findById(userId);
+    const usedPromotion = user.usedPromotions.find(
+      (usedPromotion) =>
+        usedPromotion.promotion.toString() === promotion._id.toString()
     );
 
     if (
-      userPromotion &&
-      userPromotion.timesUsed >= promotion.usageLimitPerUser
+      usedPromotion &&
+      usedPromotion.timesUsed >= promotion.usageLimitPerUser
     ) {
       req.promotionError =
-        "Promotion code has reached its usage limit for this user";
+        "Mã khuyến mãi đã hết lượt sử dụng cho tài khoản của bạn";
       return next();
     }
   }
@@ -78,13 +81,16 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const orders = await Order.find({ ...orderQuery, paymentStatus: "unpaid" });
 
   if (!orders.length) {
-    req.promotionError = "No orders found for this table";
+    req.promotionError = "Không có đơn hàng nào để áp dụng mã khuyến mãi";
     return next();
   }
   const totalAmount = orders.reduce((acc, order) => acc + order.amount, 0);
 
   if (promotion.minOrderValue && totalAmount < promotion.minOrderValue) {
-    req.promotionError = `Minimum order value for this promotion is ${promotion.minOrderValue}`;
+    req.promotionError = `Đơn hàng phải có giá trị tối thiểu ${new Intl.NumberFormat(
+      "vi-VN",
+      { style: "currency", currency: "VND", currencyDisplay: "code" }
+    ).format(promotion.minOrderValue)}`;
     return next();
   }
 

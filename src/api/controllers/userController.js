@@ -85,10 +85,10 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   if (FCMToken) {
-    user.FCMTokens = user.FCMTokens
-      ? [...user.FCMTokens, FCMToken]
-      : [FCMToken];
+    user.FCMTokens = FCMToken;
   }
+
+  await user.save();
 
   const token = signToken(user._id);
   res.status(200).json({
@@ -103,16 +103,12 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.logout = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-
-  if (user.FCMTokens === req.body.FCMToken) {
-    user.FCMTokens = undefined;
-  }
-
+  user.FCMTokens = "";
   await user.save();
-
   res.status(200).json({
     status: "success",
     message: "Logout successful!",
+    fcmToken: user.FCMTokens,
   });
 });
 
