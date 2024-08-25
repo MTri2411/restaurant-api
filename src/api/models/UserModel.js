@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { time } = require("console");
+const { type } = require("os");
 
 const userSchema = new Schema({
   fullName: {
@@ -59,10 +61,11 @@ const userSchema = new Schema({
     type: Number,
     default: 0,
   },
+
   usedPromotions: [
     {
       promotion: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: mongoose.Schema.ObjectId,
         ref: "Promotion",
       },
       timesUsed: {
@@ -71,6 +74,7 @@ const userSchema = new Schema({
       },
     },
   ],
+
   passwordChangedAt: Date,
 
   passwordResetToken: String,

@@ -42,7 +42,7 @@ router
   .route("/most-valuable-customer")
   .get(statisticsController.getMostValuableCustomer);
 
-router.route("/daily-statistics").get(statisticsController.getDailyStatistics);
+router.route("/daily-statistics").get(statisticsController.getStatistics);
 router
   .route("/review-statistics")
   .get(statisticsController.getReviewStatistics);

@@ -4,6 +4,7 @@ const User = require("../models/UserModel");
 const Payment = require("../models/PaymentModel");
 const Order = require("../models/OrderModel");
 const Review = require("../models/ReviewModel");
+const { use } = require("../routes/orderRoutes");
 
 const getStatistics = async (
   Model,
@@ -493,46 +494,69 @@ exports.getReviewStatistics = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getDailyStatistics = catchAsync(async (req, res, next) => {
-  const startOfMonth = new Date(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    1
-  );
+exports.getStatistics = catchAsync(async (req, res, next) => {
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  const matchCondition = {
+  // Match condition for monthly data
+  const matchConditionMonth = {
     createdAt: {
       $gte: startOfMonth,
       $lte: endOfToday,
     },
   };
 
-  const groupByDay = {
+  // Match condition for yearly data
+  const matchConditionYear = {
+    createdAt: {
+      $gte: startOfYear,
+      $lte: endOfToday,
+    },
+  };
+
+  // Group by day for monthly data
+  const groupByDayMonth = {
     _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
     totalOrder: { $sum: 1 },
     totalRevenue: { $sum: "$amount" },
   };
 
-  const dailyStats = await Payment.aggregate([
-    { $match: matchCondition },
-    { $group: groupByDay },
+  // Group by day for yearly data
+  const groupByDayYear = {
+    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+    users: { $addToSet: "$userId" },
+  };
+
+  // Aggregate monthly data
+  const monthlyStats = await Payment.aggregate([
+    { $match: matchConditionMonth },
+    { $group: groupByDayMonth },
     { $sort: { _id: 1 } },
   ]);
 
+  // Aggregate yearly data
+  const yearlyStats = await Payment.aggregate([
+    { $match: matchConditionYear },
+    { $group: groupByDayYear },
+    { $sort: { _id: 1 } },
+  ]);
 
-  const orderData = dailyStats.map((stat) => ({
+  const orderData = monthlyStats.map((stat) => ({
     date: stat._id,
     totalOrder: stat.totalOrder,
   }));
 
-  const revenueData = dailyStats.map((stat) => ({
+  const revenueData = monthlyStats.map((stat) => ({
     date: stat._id,
     totalRevenue: stat.totalRevenue,
   }));
 
-
+  const userData = yearlyStats.map((stat) => ({
+    date: stat._id,
+    totalUser: stat.users.length,
+  }));
 
   res.status(200).json({
     status: "success",
@@ -544,6 +568,10 @@ exports.getDailyStatistics = catchAsync(async (req, res, next) => {
       {
         name: "Doanh Thu",
         data: revenueData,
+      },
+      {
+        name: "Người Dùng",
+        data: userData,
       },
     ],
   });

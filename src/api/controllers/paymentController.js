@@ -132,6 +132,8 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
     amountDiscount:
       totalAmount - amount !== 0 ? totalAmount - amount : undefined,
   };
+
+  console.log("Embed data promotion: ", embed_data.promotion);
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
@@ -211,6 +213,14 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         { paymentStatus: "paid" },
         { session }
       );
+
+      if (promotion) {
+        await Promotion.findOneAndUpdate(
+          { code: promotion.code },
+          { $inc: { usedCount: 1 } }
+        );
+      }
+
       const payment = await Payment.create(
         [
           {
@@ -218,7 +228,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
             userId: dataJson.app_user,
             amount: dataJson.amount,
             paymentMethod: "ZaloPay",
-            voucher: promotion?.code,
+            voucher: promotion ? promotion.code : undefined,
             amountDiscount: amountDiscount,
             appTransactionId: dataJson.app_trans_id,
             zpTransactionId: dataJson.zp_trans_id,
@@ -226,25 +236,6 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         ],
         { session }
       );
-
-      // await Promotion.findOneAndUpdate(
-      //   { code: promotion.code },
-      //   { $inc: { usedCount: 1 } }
-      //   // { session }
-      // );
-
-      // await User.findByIdAndUpdate(
-      //   dataJson.app_user,
-      //   {
-      //     $push: {
-      //       usedPromotions: {
-      //         promotion: promotion._id,
-      //         timesUsed: 1,
-      //       },
-      //     },
-      //   },
-      //  { session }
-      // );
 
       const staffs = await User.find(
         { role: "staff" },
@@ -353,25 +344,12 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       { session }
     );
 
-    // if (promotion) {
-    //   await Promotion.findByIdAndUpdate(
-    //     promotion._id,
-    //     { $inc: { usedCount: 1 } },
-    //     { session }
-    //   );
-    //   await User.findByIdAndUpdate(
-    //     req.user._id,
-    //     {
-    //       $push: {
-    //         usedPromotions: {
-    //           promotion: promotion._id,
-    //           timesUsed: 1,
-    //         },
-    //       },
-    //     },
-    //     { session }
-    //   );
-    // }
+    if (promotion) {
+      await Promotion.findOneAndUpdate(
+        { code: promotion.code },
+        { $inc: { usedCount: 1 } }
+      );
+    }
 
     const payload = {
       title: "Thanh Toán Thành Công",
