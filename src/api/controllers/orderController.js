@@ -192,7 +192,6 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
           };
         }),
     }));
-
     const totalAmount = orders.reduce((acc, cur) => {
       return (acc += cur.amount);
     }, 0);
