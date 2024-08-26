@@ -695,6 +695,11 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
         quantity: item.quantity,
         amount: item.menuItemId.price * item.quantity,
         options: item.options,
+        userOrder: {
+          fullName: order.userId.fullName,
+          img_avatar_url: order.userId.img_avatar_url,
+          role: order.userId.role,
+        },
       }))
     );
 

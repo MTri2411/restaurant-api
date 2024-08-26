@@ -335,7 +335,9 @@ exports.updateStatusTable = catchAsync(async (req, res, next) => {
     }
 
     table.status = status;
+    table.paymentStatus = "lock";
     table.currentUsers = [];
+    table.currentStaffs = [];
   } else if (status === "open") {
     if (table.status === "open") {
       return next(new AppError("Bàn đã mở", 400));

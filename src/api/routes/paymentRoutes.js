@@ -12,11 +12,16 @@ router.use(authController.protect);
 
 router
   .route("/cashpayment/:tableId")
-  .post(promotionController.checkPromotionCode, paymentController.cashPayment);
+  .post(
+    authController.restrictTo("staff"),
+    promotionController.checkPromotionCode,
+    paymentController.cashPayment
+  );
 
 router
   .route("/zalopayment/:tableId")
   .post(
+    authController.restrictTo("client"),
     paymentController.sendNotificationBeforeZaloPayment,
     promotionController.checkPromotionCode,
     paymentController.zaloPayment
@@ -24,7 +29,7 @@ router
 
 router
   .route("/notification-payment")
-  .post(paymentController.sendNotificationBeforePayment);
+  .post(authController.restrictTo("client"),paymentController.sendNotificationBeforePayment);
 
 router.route("/payments-history").get(paymentController.getPaymentsHistory);
 
