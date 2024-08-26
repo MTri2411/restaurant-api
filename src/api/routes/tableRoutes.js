@@ -34,6 +34,10 @@ router
   .post(
     authController.restrictTo("staff", "client"),
     tableController.createSoftQRCode
+  )
+  .patch(
+    authController.restrictTo("admin", "staff"),
+    tableController.updatePaymentStatus
   );
 
 router
