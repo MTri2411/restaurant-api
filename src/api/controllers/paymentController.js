@@ -683,3 +683,100 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     data: transformedData,
   });
 });
+
+
+exports.getPaymentsHistoryDetail = catchAsync(async (req, res, next) => {
+  const paymentId = req.params.id;
+  const userId = req.user._id;
+  const payment = await Payment.findById(paymentId, {
+    updatedAt: 0,
+    __v: 0,
+  })
+    .populate({
+      path: "orderId",
+      select: "userId tableId items",
+      populate: [
+        {
+          path: "userId",
+          select: "fullName img_avatar_url role",
+        },
+        {
+          path: "tableId",
+          select: "tableNumber",
+        },
+        {
+          path: "items.menuItemId",
+          select: "name engName price image_url rating",
+        },
+      ],
+    })
+    .populate({
+      path: "userId",
+      select: "fullName img_avatar_url role",
+    });
+
+  if (!payment) {
+    return res.status(404).json({
+      status: "error",
+      message: "Không tìm thấy thanh toán",
+    });
+  }
+
+  if (req.user.role === "client") {
+    if (payment.userId._id.toString() !== userId.toString()) {
+      return res.status(403).json({
+        status: "error",
+        message: "Bạn không có quyền truy cập thanh toán này",
+      });
+    }
+  }
+
+  const items =
+    payment.orderId?.flatMap((order) =>
+      order.items.map((item) => ({
+        menuItemId: item.menuItemId._id,
+        name: item.menuItemId.name,
+        engName: item.menuItemId.engName,
+        price: item.menuItemId.price,
+        image_url: item.menuItemId.image_url,
+        rating: item.menuItemId.rating,
+        quantity: item.quantity,
+        amount: item.menuItemId.price * item.quantity,
+        options: item.options,
+      }))
+    ) || [];
+
+  const tableNumber = payment.orderId?.[0]?.tableId?.tableNumber || null;
+
+  const userPay = payment.userId
+    ? {
+        fullName: payment.userId.fullName,
+        img_avatar_url: payment.userId.img_avatar_url,
+        role: payment.userId.role,
+      }
+    : null;
+
+  const userOrder =
+    payment.orderId?.flatMap((order) => ({
+      fullName: order.userId.fullName,
+      img_avatar_url: order.userId.img_avatar_url,
+      role: order.userId.role,
+    })) || [];
+
+  const transform = {
+    ...payment.toObject(),
+    voucher: payment.voucher,
+    tableNumber,
+    userPay,
+    userOrder,
+    items,
+    orderId: payment.orderId?.map((order) => order._id) || [],
+  };
+
+  delete transform.userId;
+
+  return res.status(200).json({
+    status: "success",
+    data: transform,
+  });
+});

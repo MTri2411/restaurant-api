@@ -14,12 +14,18 @@ router
   .route("/cashpayment/:tableId")
   .post(promotionController.checkPromotionCode, paymentController.cashPayment);
 
-router.route("/zalopayment/:tableId").post(promotionController.checkPromotionCode, paymentController.zaloPayment);
+router
+  .route("/zalopayment/:tableId")
+  .post(promotionController.checkPromotionCode, paymentController.zaloPayment);
 
 router
   .route("/notification-payment")
   .post(paymentController.sendNotificationBeforePayment);
 
 router.route("/payments-history").get(paymentController.getPaymentsHistory);
+
+router
+  .route("/payments-history/:id")
+  .get(paymentController.getPaymentsHistoryDetail);
 
 module.exports = router;
