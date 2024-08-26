@@ -121,7 +121,7 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
       totalAmount - amount !== 0 ? totalAmount - amount : undefined,
   };
 
-  console.log("Embed data promotion: ", embed_data.promotion);
+  const callback_url = `${process.env.RESTAURANT_API_URL}v1/payments/zalopayment-callback`;
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
@@ -132,8 +132,7 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
     embed_data: JSON.stringify(embed_data),
     amount: amount,
     description: `Payment for the order #${transID}`,
-    callback_url:
-      "https://pro2052-restaurant-api.onrender.com/v1/payments/zalopayment-callback",
+    callback_url,
   };
 
   // appid|app_trans_id|appuser|amount|apptime|embeddata|item
@@ -312,16 +311,25 @@ exports.zaloPaymentCallback = async (req, res, next) => {
   const promotion = embed_data.promotion;
   const amountDiscount = embed_data.amountDiscount;
 
-  // Push FCMTokens vào array tokens và query table (lấy tableNumber)
-  const [table, staffs] = await Promise.all([
-    Table.findById(tableId, { tableNumber: 1 }),
-    User.find({ role: "staff" }, { role: 1, FCMTokens: 1 }),
-  ]);
+  // Push FCMTokens vào array tokens và query table (lấy tableNumber và currentStaffs)
+  const table = await Table.findById(tableId, {
+    tableNumber: 1,
+    currentStaffs: 1,
+  });
 
   let userName;
-  let tokens = staffs
-    .map((staff) => staff.FCMTokens)
-    .filter((token) => token !== "");
+  let tokens = [];
+
+  for (const staffId of table.currentStaffs) {
+    const staff = await User.findOne(
+      { _id: staffId },
+      { fullName: 1, FCMTokens: 1 }
+    );
+
+    if (staff) {
+      tokens.push(staff.FCMTokens);
+    }
+  }
 
   for (const userId of arrUserIdForNoti) {
     const user = await User.findOne(
@@ -565,6 +573,47 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
     return next(new AppError("Failed to process payment", 500));
   }
 });
+
+exports.sendNotificationBeforeZaloPayment = catchAsync(
+  async (req, res, next) => {
+    const { tableId } = req.params;
+
+    const table = await Table.findById(tableId, {
+      tableNumber: 1,
+      paymentStatus: 1,
+    });
+
+    if (table.paymentStatus === "open") {
+      return next();
+    }
+
+    const staffs = await User.find(
+      { role: "staff" },
+      { role: 1, FCMTokens: 1 }
+    );
+    const tokens = staffs
+      .map((staff) => staff.FCMTokens)
+      .filter((token) => token !== "");
+
+    const payload = {
+      title: "Thông Báo Thanh Toán",
+      body: `Bàn ${table.tableNumber}`,
+      data: {
+        tableId,
+        tableNumber: table.tableNumber.toString(),
+        type: "beforePayment",
+      },
+    };
+
+    sendNotification(tokens, payload);
+
+    res.status(200).json({
+      status: "success",
+      message:
+        "Yêu cầu thanh toán của bạn đã được gửi đến phục vụ. Vui lòng chờ trong ít phút.",
+    });
+  }
+);
 
 exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
   const { tableNumber, voucher, tableId } = req.body;

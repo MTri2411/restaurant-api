@@ -16,7 +16,11 @@ router
 
 router
   .route("/zalopayment/:tableId")
-  .post(promotionController.checkPromotionCode, paymentController.zaloPayment);
+  .post(
+    paymentController.sendNotificationBeforeZaloPayment,
+    promotionController.checkPromotionCode,
+    paymentController.zaloPayment
+  );
 
 router
   .route("/notification-payment")

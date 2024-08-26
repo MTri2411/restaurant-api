@@ -14,6 +14,16 @@ const tableSchema = new mongoose.Schema(
       default: "lock",
     },
 
+    paymentStatus: {
+      type: String,
+      enum: ["open", "lock"],
+      default: "lock",
+    },
+
+    currentStaffs: [
+      { type: mongoose.Schema.ObjectId, ref: "User", default: [] },
+    ],
+
     currentUsers: [
       { type: mongoose.Schema.ObjectId, ref: "User", default: [] },
     ],

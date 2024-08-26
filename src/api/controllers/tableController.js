@@ -351,6 +351,42 @@ exports.updateStatusTable = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.updatePaymentStatus = catchAsync(async (req, res, next) => {
+  checkSpellFields(["paymentStatus"], req.body);
+
+  const { tableId } = req.params;
+  const { paymentStatus } = req.body;
+  const staffId = req.user._id;
+
+  // Check required fields
+  if (!paymentStatus) {
+    return next(new AppError("Payment status is required", 400));
+  }
+
+  const table = await Table.findById(tableId, {
+    paymentStatus: 1,
+    currentStaffs: 1,
+  });
+
+  if (paymentStatus === "lock") {
+    table.paymentStatus = paymentStatus;
+    table.currentStaffs = [];
+  } else if (paymentStatus === "open") {
+    if (table.paymentStatus === "open") {
+      return next(new AppError("Bàn đã mở quyền thanh toán", 400));
+    }
+    table.paymentStatus = paymentStatus;
+    table.currentStaffs.push(staffId);
+  }
+
+  const updatedPaymentStatus = await table.save();
+
+  res.status(200).json({
+    status: "success",
+    data: updatedPaymentStatus,
+  });
+});
+
 exports.softDeleteTable = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
 
