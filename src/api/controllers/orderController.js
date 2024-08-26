@@ -530,6 +530,9 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
         _id: itemId,
       },
     },
+  }).populate({
+    path: "items.menuItemId",
+    select: "price",
   });
 
   if (!order) {
@@ -550,6 +553,10 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
     }
 
     order.items.pull({ _id: item[0]._id });
+    order.amount = order.items.reduce((acc, cur) => {
+      return (acc += cur.menuItemId.price * cur.quantity);
+    }, 0);
+
     await order.save();
   } else {
     const item = order.items.filter((item) => item._id.toString() === itemId);
@@ -559,6 +566,9 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
     }
 
     order.items.pull({ _id: item[0]._id });
+    order.amount = order.items.reduce((acc, cur) => {
+      return (acc += cur.menuItemId.price * cur.quantity);
+    }, 0);
     await order.save();
   }
 
