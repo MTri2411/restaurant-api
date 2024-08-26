@@ -133,7 +133,7 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
     amount: amount,
     description: `Payment for the order #${transID}`,
     callback_url:
-      "https://pro2052-restaurant-api.onrender.com/v1/payments/zalopayment-callback",
+      "https://af57-115-79-232-125.ngrok-free.app/v1/payments/zalopayment-callback",
   };
 
   // appid|app_trans_id|appuser|amount|apptime|embeddata|item
