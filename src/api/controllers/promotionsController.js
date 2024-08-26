@@ -29,6 +29,7 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const promotionCode = req.query.promotionCode || req.body.promotionCode;
   const { tableId } = req.params;
   const userId = req.query.userId ? req.user._id : undefined;
+  const userIDfromToken = req.user._id;
 
   if (!promotionCode) {
     return next();
@@ -40,11 +41,6 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     endDate: { $gte: new Date() },
     isActive: true,
   });
-
-  if (!promotion) {
-    req.promotionError = "Mã khuyến mãi không hợp lệ";
-    return next();
-  }
 
   if (!promotion) {
     const expiredPromotion = await Promotion.findOne({ code: promotionCode });
@@ -59,8 +55,10 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     return next();
   }
 
-  if (userId) {
-    const user = await User.findById(userId);
+  const checkUserId = userId || userIDfromToken;
+
+  if (checkUserId) {
+    const user = await User.findById(checkUserId);
     const promotionUsed = user.promotionsUsed.find(
       (p) =>
         p.promotionCode === promotionCode && p.version === promotion.version
@@ -410,3 +408,17 @@ exports.getPaymentsWithVoucher = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+
+// GET lịch sử sử dụng mã khuyến mãi của user
+exports.getPromotionHistory = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user._id);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      promotionsUsed: user.promotionsUsed,
+    },
+  });
+}
+);
