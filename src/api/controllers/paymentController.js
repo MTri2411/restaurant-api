@@ -627,8 +627,8 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
     title: "Thông Báo Thanh Toán",
     body: `Bàn ${tableNumber}`,
     data: {
-      tableId,
-      tableNumber,
+      tableId: tableId.toString(),
+      tableNumber: tableNumber.toString(),
       voucher,
       type: "beforePayment",
     },
@@ -732,7 +732,6 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
     data: transformedData,
   });
 });
-
 
 exports.getPaymentsHistoryDetail = catchAsync(async (req, res, next) => {
   const paymentId = req.params.id;
