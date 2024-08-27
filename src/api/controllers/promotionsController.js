@@ -30,6 +30,7 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const { tableId } = req.params;
   const userId = req.query.userId ? req.user._id : undefined;
   const userIDfromToken = req.user._id;
+  const userIdCash = req.body.userIdCash;
 
   if (!promotionCode) {
     return next();
@@ -55,7 +56,7 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     return next();
   }
 
-  const checkUserId = userId || userIDfromToken;
+  const checkUserId = userId || userIDfromToken || userIdCash;
 
   if (checkUserId) {
     const user = await User.findById(checkUserId);
@@ -409,7 +410,6 @@ exports.getPaymentsWithVoucher = catchAsync(async (req, res, next) => {
   });
 });
 
-
 // GET lịch sử sử dụng mã khuyến mãi của user
 exports.getPromotionHistory = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user._id);
@@ -420,5 +420,4 @@ exports.getPromotionHistory = catchAsync(async (req, res, next) => {
       promotionsUsed: user.promotionsUsed,
     },
   });
-}
-);
+});
