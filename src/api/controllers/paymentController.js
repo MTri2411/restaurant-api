@@ -69,6 +69,12 @@ const validatePayment = async (req, res, next) => {
   return orders;
 };
 
+const getDateRange = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+
 exports.zaloPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
   const { tableId } = req.params;
@@ -643,15 +649,15 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
 });
 
 exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
-  let userId = req.user._id;
+  let user = req.user;
   let userIdQuery = req.query.userId;
-  const user = await User.findOne({ _id: userId }, { role: 1 });
-  if (user.role !== "client") {
-    userId = userIdQuery === undefined ? undefined : userIdQuery;
-  }
+  let userId = userIdQuery === undefined ? undefined : userIdQuery;
 
-  const payments = await Payment.find(
-    { ...(userId && { userId }) },
+  let daysAgo = req.query.daysAgo || 30;
+  let dateRange = getDateRange(daysAgo);
+
+  let payments = await Payment.find(
+    { ...(userId && { userId }), createdAt: { $gte: dateRange } },
     { updatedAt: 0, __v: 0 }
   )
     .populate({
@@ -683,6 +689,22 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       select: "fullName img_avatar_url role",
     })
     .sort({ createdAt: "desc" });
+
+  if (user.role === "client") {
+    payments = payments
+      .map((eachPayment) => {
+        const findOrderHaveUser = eachPayment.orderId.find(
+          (order) => order.userId._id.toString() === user._id.toString()
+        );
+
+        if (findOrderHaveUser) {
+          return eachPayment;
+        }
+
+        return null;
+      })
+      .filter((payment) => payment !== null);
+  }
 
   const transformedData = payments.map((eachPayment) => {
     const items = eachPayment.orderId.flatMap((order) =>
