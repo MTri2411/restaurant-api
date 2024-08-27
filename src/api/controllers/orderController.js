@@ -538,9 +538,8 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
     return next(new AppError("Không tìm thấy món", 404));
   }
 
+  const item = order.items.filter((item) => item._id.toString() === itemId);
   if (user.role === "client") {
-    const item = order.items.filter((item) => item._id.toString() === itemId);
-
     if (item[0].status === "finished") {
       return next(new AppError("Không thể xoá món này vì món đã hoàn thành"));
     }
@@ -550,25 +549,21 @@ exports.deleteOrderItem = catchAsync(async (req, res, next) => {
         new AppError("Không thể xoá món này vì đã hết thời gian quy định", 400)
       );
     }
-
-    order.items.pull({ _id: item[0]._id });
-    order.amount = order.items.reduce((acc, cur) => {
-      return (acc += cur.menuItemId.price * cur.quantity);
-    }, 0);
-
-    await order.save();
   } else {
-    const item = order.items.filter((item) => item._id.toString() === itemId);
-
     if (item[0].status === "finished") {
       return next(new AppError("Không thể xoá món này vì món đã hoàn thành"));
     }
+  }
 
-    order.items.pull({ _id: item[0]._id });
+  order.items.pull({ _id: item[0]._id });
+  if (order.items.length > 0) {
     order.amount = order.items.reduce((acc, cur) => {
       return (acc += cur.menuItemId.price * cur.quantity);
     }, 0);
+
     await order.save();
+  } else if (order.items.length === 0) {
+    await Order.findByIdAndDelete(order._id);
   }
 
   res.status(200).json({

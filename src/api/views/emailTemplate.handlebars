@@ -63,29 +63,30 @@
   <body>
     <div class="container">
       <div class="header">
-        {{#if isVerification}}Email Verification{{else}}Password Reset{{/if}}
+        {{#if isVerification}}Email xác thực{{else}}Đặt lại mật khẩu{{/if}}
       </div>
       <div class="content">
-        <p>Dear Customer,</p>
+        <p>Thân chào quý khách,</p>
 
         {{#if isVerification}}
-        <p>Thank you for registering with PRO2052 Restaurant. Please use the
-          following verification code to complete your registration:</p>
+        <p>Cảm ơn quý khách đã đăng ký với PRO2052 Restaurant. Vui lòng sử dụng
+          mã xác thực sau để hoàn tất đăng ký:</p>
         {{else}}
-        <p>You have requested to reset your password. This request will expire
-          in 1 minute. Please use the following code to reset your password:</p>
+        <p>Quý khách đã yêu cầu đặt lại mật khẩu. Yêu cầu này sẽ hết hạn trong
+          10
+          phút. Vui lòng sử dụng mã sau để đặt lại mật khẩu:</p>
         {{/if}}
 
         <div style="text-align: center;">
           {{#if isVerification}}
           <div class="code">{{verificationCode}}</div>
           {{else}}
-          <a href="{{resetURL}}" class="btn">Reset Password</a>
+          <a href="{{resetURL}}" class="btn">Đặt lại mật khẩu</a>
           {{/if}}
         </div>
 
-        <p>If you did not request this, please ignore this email.</p>
-        <p>Best regards,<br />PRO2052 Restaurant Team</p>
+        <p>Nếu quý khách không yêu cầu điều này, vui lòng bỏ qua email này.</p>
+        <p>Trân trọng,<br />Đội ngũ PRO2052 Restaurant</p>
       </div>
     </div>
   </body>

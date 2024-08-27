@@ -69,6 +69,12 @@ const validatePayment = async (req, res, next) => {
   return orders;
 };
 
+const getDateRange = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+
 exports.zaloPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
   const { tableId } = req.params;
@@ -452,7 +458,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
 exports.cashPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
   const { tableId } = req.params;
-  const { paymentMethod } = req.body;
+  const { paymentMethod, userIdCash } = req.body;
   const staff = req.user;
 
   let tokens = [staff.FCMTokens];
@@ -519,7 +525,7 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       });
 
       await User.findByIdAndUpdate(
-        req.user._id,
+        userIdCash,
         {
           $push: {
             promotionsUsed: {
@@ -616,7 +622,7 @@ exports.sendNotificationBeforeZaloPayment = catchAsync(
 );
 
 exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
-  const { tableNumber, voucher, tableId } = req.body;
+  const { tableNumber, voucher, tableId, userIdCash } = req.body;
 
   const staffs = await User.find({ role: "staff" }, { role: 1, FCMTokens: 1 });
   const tokens = staffs
@@ -629,6 +635,7 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
     data: {
       tableId: tableId.toString(),
       tableNumber: tableNumber.toString(),
+      userIdCash: userIdCash.toString(),
       voucher,
       type: "beforePayment",
     },
@@ -642,15 +649,15 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
 });
 
 exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
-  let userId = req.user._id;
+  let user = req.user;
   let userIdQuery = req.query.userId;
-  const user = await User.findOne({ _id: userId }, { role: 1 });
-  if (user.role !== "client") {
-    userId = userIdQuery === undefined ? undefined : userIdQuery;
-  }
+  let userId = userIdQuery === undefined ? undefined : userIdQuery;
 
-  const payments = await Payment.find(
-    { ...(userId && { userId }) },
+  let daysAgo = req.query.daysAgo || 30;
+  let dateRange = getDateRange(daysAgo);
+
+  let payments = await Payment.find(
+    { ...(userId && { userId }), createdAt: { $gte: dateRange } },
     { updatedAt: 0, __v: 0 }
   )
     .populate({
@@ -682,6 +689,22 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
       select: "fullName img_avatar_url role",
     })
     .sort({ createdAt: "desc" });
+
+  if (user.role === "client") {
+    payments = payments
+      .map((eachPayment) => {
+        const findOrderHaveUser = eachPayment.orderId.find(
+          (order) => order.userId._id.toString() === user._id.toString()
+        );
+
+        if (findOrderHaveUser) {
+          return eachPayment;
+        }
+
+        return null;
+      })
+      .filter((payment) => payment !== null);
+  }
 
   const transformedData = payments.map((eachPayment) => {
     const items = eachPayment.orderId.flatMap((order) =>
