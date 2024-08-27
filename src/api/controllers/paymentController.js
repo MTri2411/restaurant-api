@@ -452,7 +452,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
 exports.cashPayment = catchAsync(async (req, res, next) => {
   const orders = await validatePayment(req, res, next);
   const { tableId } = req.params;
-  const { paymentMethod } = req.body;
+  const { paymentMethod, userIdCash } = req.body;
   const staff = req.user;
 
   let tokens = [staff.FCMTokens];
@@ -519,7 +519,7 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       });
 
       await User.findByIdAndUpdate(
-        req.user._id,
+        userIdCash,
         {
           $push: {
             promotionsUsed: {
@@ -616,7 +616,7 @@ exports.sendNotificationBeforeZaloPayment = catchAsync(
 );
 
 exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
-  const { tableNumber, voucher, tableId } = req.body;
+  const { tableNumber, voucher, tableId, userIdCash } = req.body;
 
   const staffs = await User.find({ role: "staff" }, { role: 1, FCMTokens: 1 });
   const tokens = staffs
@@ -629,6 +629,7 @@ exports.sendNotificationBeforePayment = catchAsync(async (req, res, next) => {
     data: {
       tableId: tableId.toString(),
       tableNumber: tableNumber.toString(),
+      userIdCash: userIdCash.toString(),
       voucher,
       type: "beforePayment",
     },
