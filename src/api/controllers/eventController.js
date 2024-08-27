@@ -72,7 +72,7 @@ exports.createEvent = catchAsync(async (req, res, next) => {
       eventId: newEvent._id.toString(),
       type: "events",
     },
-    image_url: `${imageUrls[0]}`
+    image_url: imageUrls[0],
   };
 
   sendNotification(tokens, payload);
