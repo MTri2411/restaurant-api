@@ -26,6 +26,4 @@ router
   .route("/reset-promotion-version/:id")
   .post(promotionsController.resetPromotionVersion);
 
-router.route("/get-promotion-history").get(promotionsController.getPromotionHistory);
-
 module.exports = router;

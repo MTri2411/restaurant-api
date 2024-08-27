@@ -55,7 +55,8 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
     return next();
   }
 
-  const checkUserId = userId || userIDfromToken;
+  const checkUserId = userId || userIDfromToken || userIdCash;
+  console.log(checkUserId);
 
   if (checkUserId) {
     const user = await User.findById(checkUserId);
@@ -367,7 +368,21 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.resetAllPromotions = catchAsync(async (req, res, next) => {});
+exports.resetAllPromotions = catchAsync(async (req, res, next) => {
+  // Đặt lại end date của tất cả các promotion tăng thêm 1 ngày và isActive = true
+  await Promotion.updateMany(
+    { endDate: { $lt: new Date() } },
+    { endDate: new Date() }
+  );
+
+  await Promotion.updateMany({ isActive: false }, { isActive: true });
+
+  res.status(200).json({
+    status: "success",
+    message: "All promotions have been reset",
+    data: null,
+  });
+});
 
 exports.deletePromotion = catchAsync(async (req, res, next) => {
   const promotion = await Promotion.findById(req.params.id);
@@ -420,5 +435,4 @@ exports.getPromotionHistory = catchAsync(async (req, res, next) => {
       promotionsUsed: user.promotionsUsed,
     },
   });
-}
-);
+});
