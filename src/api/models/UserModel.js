@@ -82,6 +82,10 @@ const userSchema = new Schema({
 
   passwordResetExpires: Date,
 
+  passwordResetCode: String,
+
+  passwordResetCodeExpires: Date,
+
   FCMTokens: {
     type: String,
     default: "",
@@ -115,5 +119,14 @@ userSchema.methods.createResetPasswordToken = function () {
   return resetToken;
 };
 
+userSchema.methods.createPasswordResetCode = function () {
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  this.passwordResetCode = resetCode;
+
+  this.passwordResetCodeExpires = Date.now() + 10 * 60 * 1000;
+
+  return resetCode;
+};
 const User = mongoose.model("User", userSchema);
 module.exports = User;

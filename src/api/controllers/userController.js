@@ -174,7 +174,7 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 });
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  const { email, isAdmin } = req.body;
+  const { email } = req.body;
   const user = await User.findOne({ email });
   if (!user) {
     return next(new AppError("User not found!", 404));
@@ -182,9 +182,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const resetToken = user.createResetPasswordToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetURL = isAdmin
-    ? `http://127.0.0.1:3000/reset-password/${resetToken}`
-    : `http://127.0.0.1:8081/reset-password/${resetToken}`;
+  const resetURL = `http://127.0.0.1:3000/reset-password/${resetToken}`;
 
   try {
     sendResetPasswordMail(user.email, resetURL);
@@ -198,6 +196,52 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
     return next(new AppError("Failed to send email for password reset", 500));
   }
+});
+
+exports.forgotPasswordForClient = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("User not found!", 404));
+  }
+  const passwordResetCode = user.createPasswordResetCode();
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    sendResetPasswordMail(user.email, passwordResetCode);
+    res.status(200).json({
+      status: "success",
+      message: "Password reset code sent successfully!",
+    });
+  } catch (error) {
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    return next(new AppError("Failed to send password reset code", 500));
+  }
+});
+
+exports.resetPasswordForClient = catchAsync(async (req, res, next) => {
+  const { email, password, passwordResetCode } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(new AppError("User not found!", 404));
+  }
+
+  if (user.passwordResetCode !== passwordResetCode) {
+    return next(new AppError("Invalid password reset code!", 400));
+  }
+
+  user.password = password;
+  user.passwordResetCode = undefined;
+  user.passwordResetCodeExpires = undefined;
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Password reset successful!",
+  });
 });
 
 exports.resetPassword = catchAsync(async (req, res, next) => {

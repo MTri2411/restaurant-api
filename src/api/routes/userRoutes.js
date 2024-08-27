@@ -28,6 +28,8 @@ router.route("/login").post(userController.login);
 router.route("/logout").post(authController.protect, userController.logout);
 router.route("/forgot-password").post(userController.forgotPassword);
 router.route("/reset-password/:token").patch(userController.resetPassword);
+router.route("/forgot-password-for-client").post(userController.forgotPasswordForClient);
+router.route("/reset-password-for-client").patch(userController.resetPasswordForClient);
 router.route("/resend-verification").post(userController.resendVerification);
 router.route("/me").get(authController.protect, userController.getUser);
 
