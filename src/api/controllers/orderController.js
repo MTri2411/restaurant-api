@@ -143,11 +143,14 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
         options: item.options,
         quantity: item.quantity,
         amount: item.menuItemId.price * item.quantity,
+        status: item.status,
       }))
       .forEach((item) => {
         const existingItem = mergedItems.find(
           (mergedItem) =>
-            mergedItem.name === item.name && mergedItem.options === item.options
+            mergedItem.name === item.name &&
+            mergedItem.options === item.options &&
+            mergedItem.status === item.status
         );
 
         if (existingItem) {
@@ -166,7 +169,8 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
           const matchedItems = order.items.filter(
             (itemOfOrder) =>
               itemOfOrder.menuItemId.name === item.name &&
-              itemOfOrder.options === item.options
+              itemOfOrder.options === item.options &&
+              itemOfOrder.status === item.status
           );
 
           return matchedItems.length > 0;
@@ -183,12 +187,24 @@ exports.getOrdersForClient = catchAsync(async (req, res, next) => {
               return (accumulator += currentValue.quantity);
             }, 0);
 
+          const loadingQuantity = order.items
+            .filter(
+              (itemOfOrder) =>
+                itemOfOrder.menuItemId.name === item.name &&
+                itemOfOrder.options === item.options &&
+                itemOfOrder.status === "loading"
+            )
+            .reduce((accumulator, currentValue) => {
+              return (accumulator += currentValue.quantity);
+            }, 0);
+
           return {
             userId: order.userId._id,
             fullName: order.userId.fullName,
             img_avatar_url: order.userId.img_avatar_url,
             role: order.userId.role,
-            orderQuantity: orderQuantity,
+            orderQuantity,
+            loadingQuantity,
           };
         }),
     }));
