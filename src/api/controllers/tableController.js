@@ -96,7 +96,7 @@ exports.scanQRCode = catchAsync(async (req, res, next) => {
       return res.status(200).json({
         status: "success",
         usageAllowed: "no",
-        messaging: `Sai type QR Code`,
+        message: `Sai type QR Code`,
       });
     }
   } else {
@@ -110,7 +110,7 @@ exports.scanQRCode = catchAsync(async (req, res, next) => {
       return res.status(200).json({
         status: "success",
         usageAllowed: "no",
-        messaging: `Bạn đang ở bàn số ${currentUser.tableNumber}`,
+        message: `Bạn đang ở bàn số ${currentUser.tableNumber}`,
         data: table,
       });
     }
