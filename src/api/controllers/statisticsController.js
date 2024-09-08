@@ -473,9 +473,9 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
   const groupBy = {
     _id: {
       timePeriod: formatGroupBy(type),
-      userId: "$userId",
+      userId: "$order.userId",
     },
-    totalAmount: { $sum: "$amount" },
+    totalAmount: { $sum: "$order.amount" },
   };
 
   const projectFields = {
@@ -486,6 +486,15 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
 
   const stats = await Payment.aggregate([
     { $match: matchCondition },
+    {
+      $lookup: {
+        from: "orders",
+        localField: "orderId",
+        foreignField: "_id",
+        as: "order",
+      },
+    },
+    { $unwind: "$order" },
     { $group: groupBy },
     {
       $lookup: {
@@ -496,6 +505,7 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
       },
     },
     { $unwind: "$user" },
+    { $match: { "user.role": "client" } }, // Thay đổi điều kiện $match để lọc user có role là "client"
     {
       $project: {
         _id: 0,
@@ -505,8 +515,8 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
         name: "$user.fullName",
       },
     },
-    { $sort: { timePeriod: 1, totalAmount: -1 } },
-    { $limit: 5 },
+    { $sort: { totalAmount: -1 } }, // Sắp xếp theo totalAmount giảm dần
+    { $limit: 5 }, // Giới hạn kết quả chỉ lấy 5 user
   ]);
 
   res.status(200).json({
@@ -514,7 +524,6 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
-
 exports.getPromotionStatistics = catchAsync(async (req, res, next) => {
   const promotionCode = req.params.promotionCode; // Lấy mã khuyến mãi từ request params
 
