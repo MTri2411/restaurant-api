@@ -212,7 +212,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const resetToken = user.createResetPasswordToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetURL = `https://bright-daifuku-374d41.netlify.app/reset-password/${resetToken}`;
+  const resetURL = `http://localhost:3000/reset-password/${resetToken}`;
 
   try {
     sendResetPasswordMail(user.email, resetURL);
