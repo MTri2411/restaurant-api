@@ -1,5 +1,4 @@
 const express = require("express");
-const tableRouter = require("./tableRoutes");
 const userController = require("../controllers/userController");
 const authController = require("../controllers/authController");
 const { upload } = require("../services/cloudinaryServices");
@@ -24,13 +23,7 @@ router
 router.route("/register").post(userController.registerUser);
 router.route("/verify").post(userController.verifyEmail);
 router.route("/login").post(userController.login);
-router
-  .route("/login-admin")
-  .post(
-    authController.protect,
-    authController.restrictTo("admin"),
-    userController.login
-  );
+router.route("/login-admin").post(userController.loginAdmin);
 router.route("/logout").post(authController.protect, userController.logout);
 router.route("/forgot-password").post(userController.forgotPassword);
 router.route("/reset-password/:token").patch(userController.resetPassword);

@@ -100,6 +100,37 @@ exports.login = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.loginAdmin = catchAsync(async (req, res, next) => {
+  const { email, password, FCMToken } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user || !(await user.correctPassword(password, user.password))) {
+    return next(new AppError("Sai email hoặc mật khẩu!", 401));
+  }
+
+  if (!user.isVerified) {
+    return next(new AppError("Vui lòng xác minh email của bạn!", 401));
+  }
+
+  if (user.role !== "admin") {
+    return next(new AppError("Bạn không có quyền truy cập!", 403));
+  }
+
+  if (FCMToken) {
+    user.FCMTokens = FCMToken;
+  }
+  await user.save();
+
+  const token = signToken(user._id);
+  res.status(200).json({
+    status: "success",
+    message: "Login successful!",
+    data: {
+      token,
+    },
+  });
+});
+
 exports.logout = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
   user.FCMTokens = "";

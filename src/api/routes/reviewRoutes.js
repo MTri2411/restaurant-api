@@ -3,16 +3,14 @@ const reviewController = require("../controllers/reviewController");
 const authController = require("../controllers/authController");
 
 const router = express.Router();
-router.use(authController.protect);
+router.use(authController.protect, authController.restrictTo("client"));
 
-router.route("/").get(reviewController.getAllReviews);
+router.route("/").get(authController.restrictTo("admin"), reviewController.getAllReviews);
 
 router
   .route("/")
   .post(reviewController.filterProfanity, reviewController.createReview);
 
 router.route("/my-reviews").get(reviewController.getMyReviews);
-
-
 
 module.exports = router;
