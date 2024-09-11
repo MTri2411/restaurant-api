@@ -27,7 +27,7 @@ cron.schedule("0 0 * * *", updatePromotionStatus);
 
 exports.checkPromotionCode = catchAsync(async (req, res, next) => {
   const promotionCode = req.query.promotionCode || req.body.promotionCode;
-  const { tableId } = req.params;
+  const tableId = req.params.tableId || req.query.tableId;
   const userId = req.query.userId ? req.user._id : undefined;
   const userIDfromToken = req.user._id;
   const userIdCash = req.body.userIdCash;

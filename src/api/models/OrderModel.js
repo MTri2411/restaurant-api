@@ -14,6 +14,10 @@ const orderSchema = new mongoose.Schema(
       required: [true, "table id is required!"],
     },
 
+    tableNumber: {
+      type: Number,
+    },
+
     items: [
       {
         menuItemId: {
@@ -21,8 +25,16 @@ const orderSchema = new mongoose.Schema(
           ref: "menuItems",
         },
 
-        quantity: {
+        name: {
+          type: String,
+        },
+
+        price: {
           type: Number,
+        },
+
+        image_url: {
+          type: String,
         },
 
         options: {
@@ -34,16 +46,23 @@ const orderSchema = new mongoose.Schema(
           type: Number,
         },
 
+        quantity: {
+          type: Number,
+        },
+
+        loadingQuantity: {
+          type: Number,
+        },
+
+        finishedQuantity: {
+          type: Number,
+        },
+
         status: {
           type: String,
           enum: ["loading", "finished"],
           default: "loading",
         },
-
-        // reviewed: {
-        //   type: Boolean,
-        //   default: false,
-        // },
 
         createdAt: {
           type: Date,
