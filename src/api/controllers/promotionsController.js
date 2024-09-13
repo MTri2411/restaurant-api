@@ -439,7 +439,7 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
   if (promotion.endDate < new Date()) {
     return next(
       new AppError(
-        `Promotion has expired on ${promotion.endDate.toISOString()}. Please update the end date`,
+        `Mã khuyến mãi đã hết hạn vào lúc ${promotion.endDate}`,
         400
       )
     );
@@ -448,7 +448,7 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
   if (promotion.maxUsage <= promotion.usedCount) {
     return next(
       new AppError(
-        `Promotion has reached its usage limit of ${promotion.maxUsage}. Please update the maxUsage`,
+        `Mã khuyến mãi đã hết lượt sử dụng (${promotion.usedCount}/${promotion.maxUsage})`,
         400
       )
     );
@@ -465,8 +465,7 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.resetAllPromotions = catchAsync(async (req, res, next) => {
-  // Đặt lại end date của tất cả các promotion tăng thêm 3 ngày và isActive = true
+exports.resetAllPromotions = catchAsync(async (req, res, next) => { 
   const promotions = await Promotion.find();
   const now = new Date();
   const threeDays = 3 * 24 * 60 * 60 * 1000;

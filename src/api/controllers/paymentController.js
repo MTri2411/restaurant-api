@@ -386,22 +386,38 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         { $inc: { usedCount: 1 } }
       );
 
-      const promotionData = await Promotion.findById(promotion._id, {
-        version: 1,
-      });
-
       await PromotionUsed.create(
-        {
-          userId: dataJson.app_user,
-          promotionId: promotion._id,
-          orderId,
-          usageCount: 1,
-          version: promotionData.version,
-        },
+        [
+          {
+            userId: dataJson.app_user,
+            promotionId: promotion._id,
+            orderId,
+            usageCount: 1,
+            version: promotion.version,
+          },
+        ],
         { session }
       );
-    }
 
+      const user = await User.findById(dataJson.app_user).select(
+        "promotionsRedeemed"
+      );
+
+      const promotionIndex = user.promotionsRedeemed.findIndex(
+        (redeemedPromotion) =>
+          redeemedPromotion.promotionCode === promotion.code
+      );
+
+      if (promotionIndex !== -1) {
+        if (user.promotionsRedeemed[promotionIndex].usageCount === 1) {
+          user.promotionsRedeemed.splice(promotionIndex, 1);
+        } else {
+          user.promotionsRedeemed[promotionIndex].usageCount -= 1;
+        }
+
+        await user.save({ session });
+      }
+    }
     await session.commitTransaction();
     session.endSession();
 
@@ -518,25 +534,26 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
         { $inc: { usedCount: 1 } }
       );
 
-      const promotionData = await Promotion.findById(promotion._id, {
-        version: 1,
-      });
-
       await PromotionUsed.create(
-        {
-          userId: req.user._id,
-          promotionId: promotion._id,
-          orderId: orderIds,
-          usageCount: 1,
-          version: promotionData.version,
-        },
+        [
+          {
+            userId: req.user._id,
+            promotionId: promotion._id,
+            orderId: orderIds,
+            usageCount: 1,
+            version: promotion.version,
+          },
+        ],
         { session }
       );
 
-      const user = await User.findById(userIdCash, { promotionsRedeemed: 1 });
+      const user = await User.findById(req.user._id).select(
+        "promotionsRedeemed"
+      );
+
       const promotionIndex = user.promotionsRedeemed.findIndex(
-        (promotion) =>
-          promotion.promotionCode.toString() === promotion._id.toString()
+        (redeemedPromotion) =>
+          redeemedPromotion.promotionCode === promotion.code
       );
 
       if (promotionIndex !== -1) {

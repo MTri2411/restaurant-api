@@ -63,9 +63,14 @@ const userSchema = new Schema({
     default: 0,
   },
 
-
   promotionsRedeemed: [
     {
+      promotionId: {
+        type: mongoose.Schema.ObjectId,
+        ref: "Promotion",
+        required: true,
+      },
+
       promotionCode: {
         type: String,
         required: true,

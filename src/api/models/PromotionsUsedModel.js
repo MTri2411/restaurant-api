@@ -21,16 +21,12 @@ const promotionsUsedSchema = new Schema({
   ],
   usageCount: {
     type: Number,
-    required: [true, "Promotion used must have a usage count"],
   },
   version: {
     type: Number,
-    required: [true, "Promotion used must have a version"],
   },
 });
 
 const PromotionsUsed = mongoose.model("PromotionsUsed", promotionsUsedSchema);
 
 module.exports = PromotionsUsed;
-
-
