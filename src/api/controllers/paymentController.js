@@ -2,6 +2,7 @@ const Order = require("../models/OrderModel");
 const Payment = require("../models/PaymentModel");
 const Table = require("../models/TableModel");
 const Promotion = require("../models/PromotionsModel");
+const PromotionUsed = require("../models/PromotionsUsedModel");
 const User = require("../models/UserModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
@@ -127,7 +128,7 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
       totalAmount - amount !== 0 ? totalAmount - amount : undefined,
   };
 
-  const callback_url = `${process.env.RESTAURANT_API_URL}v1/payments/zalopayment-callback`;
+  const callback_url = `https://c8d1-171-233-27-69.ngrok-free.app/v1/payments/zalopayment-callback`;
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
@@ -389,16 +390,13 @@ exports.zaloPaymentCallback = async (req, res, next) => {
         version: 1,
       });
 
-      await User.findByIdAndUpdate(
-        dataJson.app_user,
+      await PromotionUsed.create(
         {
-          $push: {
-            promotionsUsed: {
-              promotionCode: promotion.code,
-              usageCount: 1,
-              version: promotionData.version,
-            },
-          },
+          userId: dataJson.app_user,
+          promotionId: promotion._id,
+          orderId,
+          usageCount: 1,
+          version: promotionData.version,
         },
         { session }
       );
@@ -524,19 +522,32 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
         version: 1,
       });
 
-      await User.findByIdAndUpdate(
-        userIdCash,
+      await PromotionUsed.create(
         {
-          $push: {
-            promotionsUsed: {
-              promotionCode: promotion.code,
-              usageCount: 1,
-              version: promotionData.version,
-            },
-          },
+          userId: req.user._id,
+          promotionId: promotion._id,
+          orderId: orderIds,
+          usageCount: 1,
+          version: promotionData.version,
         },
         { session }
       );
+
+      const user = await User.findById(userIdCash, { promotionsRedeemed: 1 });
+      const promotionIndex = user.promotionsRedeemed.findIndex(
+        (promotion) =>
+          promotion.promotionCode.toString() === promotion._id.toString()
+      );
+
+      if (promotionIndex !== -1) {
+        if (user.promotionsRedeemed[promotionIndex].usageCount === 1) {
+          user.promotionsRedeemed.splice(promotionIndex, 1);
+        } else {
+          user.promotionsRedeemed[promotionIndex].usageCount -= 1;
+        }
+
+        await user.save({ session });
+      }
     }
 
     await session.commitTransaction();

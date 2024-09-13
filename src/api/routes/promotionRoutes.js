@@ -3,18 +3,15 @@ const promotionsController = require("../controllers/promotionsController");
 const authController = require("../controllers/authController");
 
 const router = express.Router();
-router
-  .route("/payments-with-voucher")
-  .get(promotionsController.getPaymentsWithVoucher);
-router
-  .route("/:id")
-  .get(authController.protect, promotionsController.getPromotion);
+
 router
   .route("/")
   .get(authController.protect, promotionsController.getPromotions);
+
 router.use(authController.protect, authController.restrictTo("admin"));
 
 router.route("/").post(promotionsController.createPromotion);
+router.route("/create-promotion-with-points").post(promotionsController.createPromotionWithPoints);
 router.route("/:id").patch(promotionsController.updatePromotion);
 router.route("/:id").delete(promotionsController.deletePromotion);
 

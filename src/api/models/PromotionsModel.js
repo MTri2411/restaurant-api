@@ -68,23 +68,19 @@ const promotionSchema = new mongoose.Schema(
 
     startDate: {
       type: Date,
-      required: [true, "A promotion must have a start date!"],
-      default: function () {
-        return moment.tz("Asia/Ho_Chi_Minh").startOf("day").toDate();
-      },
     },
 
     endDate: {
       type: Date,
-      required: [true, "A promotion must have an end date!"],
-      default: function () {
-        return moment.tz("Asia/Ho_Chi_Minh").endOf("day").toDate();
-      },
     },
 
     isActive: {
       type: Boolean,
       default: true,
+    },
+
+    requiredPoints: {
+      type: Number,
     },
   },
   {

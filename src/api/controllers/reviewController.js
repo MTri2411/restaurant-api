@@ -46,13 +46,63 @@ async function updateMenuItemRating(menuItemId) {
 exports.getMyReviews = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
 
-  const reviews = await Review.find({ userId }).populate({
-    path: "menuItemId",
-  });
+  const reviews = await Review.find({ userId }).select(
+    "rating comment orderId menuItemId createdAt"
+  );
+  if (!reviews.length) {
+    return next(new AppError("No reviews found for this user", 404));
+  }
 
-  return res.status(200).json({
+  const user = await User.findById(userId).select("fullName");
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  const results = await Promise.all(
+    reviews.map(async (review) => {
+      const menuItem = await MenuItem.findById(review.menuItemId).select(
+        "name image_url"
+      );
+      if (!menuItem) {
+        return next(new AppError("Menu item not found", 404));
+      }
+
+      const order = await Order.findById(review.orderId).select(
+        "items createdAt"
+      );
+      if (!order) {
+        return next(new AppError("Order not found", 404));
+      }
+
+      const item = order.items.find(
+        (item) => item.menuItemId.toString() === review.menuItemId.toString()
+      );
+      const options = item ? item.options : [];
+
+      return {
+        user: {
+          fullName: user.fullName,
+        },
+        review: {
+          rating: review.rating,
+          comment: review.comment,
+          createdAt: review.createdAt,
+        },
+        menuItem: {
+          name: menuItem.name,
+          image_url: menuItem.image_url,
+        },
+        order: {
+          createdAt: order.createdAt,
+        },
+        options,
+      };
+    })
+  );
+
+  res.status(200).json({
     status: "success",
-    data: reviews,
+    data: results,
   });
 });
 

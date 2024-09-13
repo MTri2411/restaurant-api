@@ -265,6 +265,7 @@ exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
+
 // Số lượng món ăn được đặt theo ngày/tuần/tháng/năm
 exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
@@ -524,6 +525,7 @@ exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
+
 exports.getPromotionStatistics = catchAsync(async (req, res, next) => {
   const promotionCode = req.params.promotionCode; // Lấy mã khuyến mãi từ request params
 
