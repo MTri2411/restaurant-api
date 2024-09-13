@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { time } = require("console");
 const { type } = require("os");
+const Promotion = require("./PromotionsModel");
 
 const userSchema = new Schema({
   fullName: {
@@ -62,17 +63,25 @@ const userSchema = new Schema({
     default: 0,
   },
 
-  promotionsUsed: [
+
+  promotionsRedeemed: [
     {
       promotionCode: {
         type: String,
         required: true,
       },
+
+      version: { type: Number, required: true },
+
       usageCount: {
         type: Number,
         default: 0,
       },
-      version: { type: Number, required: true },
+
+      redeemedAt: {
+        type: Date,
+        default: Date.now,
+      },
     },
   ],
 
@@ -128,5 +137,6 @@ userSchema.methods.createPasswordResetCode = function () {
 
   return resetCode;
 };
+
 const User = mongoose.model("User", userSchema);
 module.exports = User;

@@ -23,6 +23,7 @@ const paymentRouter = require("./api/routes/paymentRoutes");
 const reviewRouter = require("./api/routes/reviewRoutes");
 const statisticsRouter = require("./api/routes/statisticsRoutes");
 const eventRouter = require("./api/routes/eventRoutes");
+const promotionUsedRouter = require("./api/routes/promotionUsedRoutes");
 
 //: ******* START EXPRESS APP *******
 const app = express();
@@ -85,6 +86,7 @@ app.use("/v1/promotions", promotionRouter);
 app.use("/v1/reviews", reviewRouter);
 app.use("/v1/statistics", statisticsRouter);
 app.use("/v1/events", eventRouter);
+app.use("/v1/promotions-used", promotionUsedRouter);
 
 global._io.on("connection", SocketServices.connection);
 
