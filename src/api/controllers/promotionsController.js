@@ -205,6 +205,36 @@ exports.getPromotions = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getPromotionForClient = catchAsync(async (req, res, next) => {
+  const { requiredPoints } = req.query;
+  let query = {};
+
+  if (requiredPoints === "true") {
+    query = {
+      requiredPoints: { $ne: null },
+      endDate: null,
+    };
+  } else if (requiredPoints === "false") {
+    query = {
+      requiredPoints: null,
+      endDate: { $gte: new Date() },
+    };
+  }
+
+  const promotions = await Promotion.find({
+    isActive: true,
+    ...query,
+  });
+
+  res.status(200).json({
+    status: "success",
+    results: promotions.length,
+    data: {
+      promotions,
+    },
+  });
+});
+
 const validatePromotionFields = ({
   discountType,
   discount,
@@ -438,10 +468,7 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
 
   if (promotion.endDate < new Date()) {
     return next(
-      new AppError(
-        `Mã khuyến mãi đã hết hạn vào lúc ${promotion.endDate}`,
-        400
-      )
+      new AppError(`Mã khuyến mãi đã hết hạn vào lúc ${promotion.endDate}`, 400)
     );
   }
 
@@ -465,7 +492,7 @@ exports.updatePromotionStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.resetAllPromotions = catchAsync(async (req, res, next) => { 
+exports.resetAllPromotions = catchAsync(async (req, res, next) => {
   const promotions = await Promotion.find();
   const now = new Date();
   const threeDays = 3 * 24 * 60 * 60 * 1000;
@@ -513,5 +540,58 @@ exports.deletePromotion = catchAsync(async (req, res, next) => {
     status: "success",
     message: "Promotion deleted successfully",
     data: null,
+  });
+});
+
+exports.redeemPromotion = catchAsync(async (req, res, next) => {
+  const { promotionCode } = req.body;
+  const user = req.user;
+  const promotion = await Promotion.findOne({
+    code: promotionCode,
+    isActive: true,
+  });
+
+  if (!promotion) {
+    return next(new AppError("Mã khuyến mãi không tồn tại", 404));
+  }
+
+  if (!promotion.requiredPoints) {
+    return next(new AppError("Mã khuyến mãi này không thể đổi", 400));
+  }
+
+  if (user.reputationPoints < promotion.requiredPoints) {
+    return next(
+      new AppError(
+        `Bạn cần ${promotion.requiredPoints} điểm để đổi mã này`,
+        400
+      )
+    );
+  } 
+
+  const redeemedPromotion = user.promotionsRedeemed.find(
+    (p) => p.promotionCode === promotion.code
+  );
+
+  if (redeemedPromotion) {
+    redeemedPromotion.usageCount += 1;
+    redeemedPromotion.redeemedAt = new Date();
+  } else {
+    user.promotionsRedeemed.push({
+      promotionId: promotion._id,
+      promotionCode: promotion.code,
+      version: promotion.version,
+      usageCount: 1,
+    });
+  }
+
+  user.reputationPoints -= promotion.requiredPoints;
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: "success",
+    message: "Đổi mã khuyến mãi thành công",
+    data: {
+      user,
+    },
   });
 });
