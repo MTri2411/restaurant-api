@@ -48,13 +48,13 @@ const validatePayment = async (req, res, next) => {
   const loadingItems = orders
     .flatMap((order) =>
       order.items.filter((item) => {
-        if (item.status === "loading" && !seenNames.has(item.menuItemId.name)) {
-          seenNames.add(item.menuItemId.name);
+        if (item.status === "loading" && !seenNames.has(item.name)) {
+          seenNames.add(item.name);
           return true;
         }
       })
     )
-    .map((item) => item.menuItemId.name);
+    .map((item) => item.name);
 
   if (loadingItems.length > 0) {
     return next(
