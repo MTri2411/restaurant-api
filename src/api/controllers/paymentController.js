@@ -380,6 +380,8 @@ exports.zaloPaymentCallback = async (req, res, next) => {
       { session }
     );
 
+    const paymentId = payment[0]._id;
+
     if (promotion) {
       await Promotion.findOneAndUpdate(
         { code: promotion.code },
@@ -391,7 +393,7 @@ exports.zaloPaymentCallback = async (req, res, next) => {
           {
             userId: dataJson.app_user,
             promotionId: promotion._id,
-            orderId,
+            paymentId: paymentId,
             usageCount: 1,
             version: promotion.version,
           },
@@ -528,6 +530,8 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
       { session }
     );
 
+    const paymentId = payment[0]._id;
+
     if (promotion) {
       await Promotion.findOneAndUpdate(
         { code: promotion.code },
@@ -539,7 +543,7 @@ exports.cashPayment = catchAsync(async (req, res, next) => {
           {
             userId: req.user._id,
             promotionId: promotion._id,
-            orderId: orderIds,
+            paymentId: paymentId,
             usageCount: 1,
             version: promotion.version,
           },

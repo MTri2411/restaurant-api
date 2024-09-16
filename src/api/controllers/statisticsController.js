@@ -5,7 +5,7 @@ const Payment = require("../models/PaymentModel");
 const Order = require("../models/OrderModel");
 const Review = require("../models/ReviewModel");
 const Promotion = require("../models/PromotionsModel");
-const { use } = require("../routes/orderRoutes");
+const MenuItem = require("../models/MenuItemModel");
 
 const getStatistics = async (
   Model,
@@ -30,6 +30,20 @@ const getStatistics = async (
   return stats;
 };
 
+const getMatchCondition = (startDate, endDate) => {
+  let matchCondition = {};
+  if (startDate && endDate) {
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+
+    matchCondition.createdAt = {
+      $gte: new Date(startDate),
+      $lt: adjustedEndDate,
+    };
+  }
+  return matchCondition;
+};
+
 const formatGroupBy = (type) => {
   switch (type) {
     case "day":
@@ -44,20 +58,12 @@ const formatGroupBy = (type) => {
       throw new AppError("Invalid statistics type", 400);
   }
 };
+
 // Doanh thu theo ngày/tuần/tháng/năm
 exports.getRevenueStatistics = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: formatGroupBy(type),
     totalRevenue: { $sum: "$amount" },
@@ -82,17 +88,7 @@ exports.getRevenueStatistics = catchAsync(async (req, res, next) => {
 exports.getAverageOrderValue = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: formatGroupBy(type),
     totalRevenue: { $sum: "$amount" },
@@ -126,17 +122,7 @@ exports.getAverageOrderValue = catchAsync(async (req, res, next) => {
 exports.getOrderStatistics = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: formatGroupBy(type),
     totalOrders: { $sum: 1 },
@@ -160,17 +146,7 @@ exports.getOrderStatistics = catchAsync(async (req, res, next) => {
 exports.getRevenueByTable = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: {
       tableId: "$order.tableId",
@@ -225,17 +201,7 @@ exports.getRevenueByTable = catchAsync(async (req, res, next) => {
 exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: {
       paymentMethod: "$paymentMethod",
@@ -270,17 +236,7 @@ exports.getRevenueByPaymentMethod = catchAsync(async (req, res, next) => {
 exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: {
       timePeriod: formatGroupBy(type),
@@ -324,17 +280,7 @@ exports.getMenuItemStatistics = catchAsync(async (req, res, next) => {
 exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
 
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
+  const matchCondition = getMatchCondition(startDate, endDate);
   const groupBy = {
     _id: {
       timePeriod: formatGroupBy(type),
@@ -391,6 +337,48 @@ exports.getBestSellingMenuItem = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: stats,
+  });
+});
+
+exports.getValuableCustomer = catchAsync(async (req, res, next) => {
+  const valuableCustomers = await Payment.aggregate([
+    {
+      $group: {
+        _id: "$userId",
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "userDetails",
+      },
+    },
+    {
+      $unwind: "$userDetails",
+    },
+    {
+      $project: {
+        _id: 0,
+        userId: "$_id",
+        fullName: "$userDetails.fullName",
+        totalAmount: 1,
+      },
+    },
+    {
+      $sort: { totalAmount: -1 },
+    },
+    {
+      $limit: 5,
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: valuableCustomers,
   });
 });
 
@@ -453,76 +441,6 @@ exports.getPromotionUsageStatistics = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: promotionStats,
-  });
-});
-
-// Top 5 khách hàng có giá trị cao nhất theo ngày/tuần/tháng/năm
-exports.getMostValuableCustomer = catchAsync(async (req, res, next) => {
-  const { type, startDate, endDate } = req.query;
-
-  let matchCondition = {};
-  if (startDate && endDate) {
-    const adjustedEndDate = new Date(endDate);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-
-    matchCondition.createdAt = {
-      $gte: new Date(startDate),
-      $lt: adjustedEndDate,
-    };
-  }
-
-  const groupBy = {
-    _id: {
-      timePeriod: formatGroupBy(type),
-      userId: "$order.userId",
-    },
-    totalAmount: { $sum: "$order.amount" },
-  };
-
-  const projectFields = {
-    _id: "$_id.userId",
-    timePeriod: "$_id.timePeriod",
-    totalAmount: "$totalAmount",
-  };
-
-  const stats = await Payment.aggregate([
-    { $match: matchCondition },
-    {
-      $lookup: {
-        from: "orders",
-        localField: "orderId",
-        foreignField: "_id",
-        as: "order",
-      },
-    },
-    { $unwind: "$order" },
-    { $group: groupBy },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id.userId",
-        foreignField: "_id",
-        as: "user",
-      },
-    },
-    { $unwind: "$user" },
-    { $match: { "user.role": "client" } }, // Thay đổi điều kiện $match để lọc user có role là "client"
-    {
-      $project: {
-        _id: 0,
-        timePeriod: "$_id.timePeriod",
-        userId: "$_id.userId",
-        totalAmount: "$totalAmount",
-        name: "$user.fullName",
-      },
-    },
-    { $sort: { totalAmount: -1 } }, // Sắp xếp theo totalAmount giảm dần
-    { $limit: 5 }, // Giới hạn kết quả chỉ lấy 5 user
-  ]);
-
-  res.status(200).json({
-    status: "success",
-    data: stats,
   });
 });
 
@@ -656,5 +574,16 @@ exports.getStatistics = catchAsync(async (req, res, next) => {
         data: userData,
       },
     ],
+  });
+});
+
+
+// Tìm tất cả payment có voucher
+exports.getAllPaymentsWithVoucher = catchAsync(async (req, res, next) => {
+  const payments = await Payment.find({ voucher: { $exists: true, $ne: null } });
+
+  res.status(200).json({
+    status: "success",
+    data: payments,
   });
 });

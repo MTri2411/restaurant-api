@@ -40,8 +40,12 @@ router
 
 router
   .route("/most-valuable-customer")
-  .get(statisticsController.getMostValuableCustomer);
+  .get(statisticsController.getValuableCustomer);
 
 router.route("/daily-statistics").get(statisticsController.getStatistics);
+
+router
+  .route("/payments-with-voucher")
+  .get(statisticsController.getAllPaymentsWithVoucher);
 
 module.exports = router;

@@ -12,13 +12,11 @@ const promotionsUsedSchema = new Schema({
     ref: "Promotion",
     required: [true, "Promotion used must have a promotion ID"],
   },
-  orderId: [
-    {
-      type: mongoose.Schema.ObjectId,
-      ref: "Order",
-      required: [true, "Promotion used must have an order ID"],
-    },
-  ],
+  paymentId: {
+    type: mongoose.Schema.ObjectId,
+    ref: "Payment",
+    required: [true, "Promotion used must have a payment ID"],
+  },
   usageCount: {
     type: Number,
   },
