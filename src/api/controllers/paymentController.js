@@ -128,7 +128,7 @@ exports.zaloPayment = catchAsync(async (req, res, next) => {
       totalAmount - amount !== 0 ? totalAmount - amount : undefined,
   };
 
-  const callback_url = `https://c8d1-171-233-27-69.ngrok-free.app/v1/payments/zalopayment-callback`;
+  const callback_url = `${process.env.RESTAURANT_API_URL}v1/payments/zalopayment-callback`;
   const transID = Math.floor(Math.random() * 1000000);
   const order = {
     app_id: config.app_id,
