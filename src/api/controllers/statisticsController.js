@@ -1,11 +1,8 @@
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const User = require("../models/UserModel");
 const Payment = require("../models/PaymentModel");
 const Order = require("../models/OrderModel");
 const Review = require("../models/ReviewModel");
-const Promotion = require("../models/PromotionsModel");
-const MenuItem = require("../models/MenuItemModel");
 const PromotionsUsed = require("../models/PromotionsUsedModel");
 
 const getStatistics = async (

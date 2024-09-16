@@ -30,7 +30,7 @@ router
   .get(statisticsController.getBestSellingMenuItem);
 
 router
-  .route("/most-valuable-customer")
+  .route("/valuable-customer")
   .get(statisticsController.getValuableCustomer);
 
 router.route("/daily-statistics").get(statisticsController.getStatistics);
