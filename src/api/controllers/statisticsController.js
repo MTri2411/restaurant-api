@@ -6,6 +6,7 @@ const Order = require("../models/OrderModel");
 const Review = require("../models/ReviewModel");
 const Promotion = require("../models/PromotionsModel");
 const MenuItem = require("../models/MenuItemModel");
+const PromotionsUsed = require("../models/PromotionsUsedModel");
 
 const getStatistics = async (
   Model,
@@ -348,7 +349,6 @@ exports.getValuableCustomer = catchAsync(async (req, res, next) => {
         totalAmount: { $sum: "$amount" },
       },
     },
-
     {
       $lookup: {
         from: "users",
@@ -359,6 +359,11 @@ exports.getValuableCustomer = catchAsync(async (req, res, next) => {
     },
     {
       $unwind: "$userDetails",
+    },
+    {
+      $match: {
+        "userDetails.role": { $ne: "staff" },
+      },
     },
     {
       $project: {
@@ -382,111 +387,81 @@ exports.getValuableCustomer = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getPromotionUsageStatistics = catchAsync(async (req, res, next) => {
-  const promotionStats = await Payment.aggregate([
+exports.getPromotionStatistics = catchAsync(async (req, res, next) => {
+  const promotions = await PromotionsUsed.aggregate([
     {
-      $match: {
-        voucher: { $exists: true, $ne: null }, // Lọc các thanh toán có chứa mã khuyến mãi
+      $group: {
+        _id: "$promotionId",
+        totalUsed: { $sum: 1 },
+        userIds: { $addToSet: "$userId" },
+        paymentIds: { $addToSet: "$paymentId" },
       },
     },
     {
       $lookup: {
-        from: "users",
-        localField: "userId",
+        from: "promotions",
+        localField: "_id",
         foreignField: "_id",
-        as: "userDetails",
+        as: "promotion",
       },
     },
     {
-      $unwind: "$userDetails",
+      $unwind: "$promotion",
     },
     {
-      $group: {
-        _id: "$voucher",
-        totalDiscount: { $sum: "$amountDiscount" }, // Tính tổng số tiền được giảm từ mã khuyến mãi
-        payments: {
-          $push: {
-            paymentId: "$_id",
-            userId: "$userId",
-            fullName: "$userDetails.fullName", // Lấy fullName từ userDetails
-            orderId: "$orderId",
-            discountAmount: "$amountDiscount",
-            paymentDate: "$createdAt", // Lấy ngày từ paymentId
-          },
-        },
+      $lookup: {
+        from: "users",
+        localField: "userIds",
+        foreignField: "_id",
+        as: "users",
+      },
+    },
+    {
+      $lookup: {
+        from: "payments",
+        localField: "paymentIds",
+        foreignField: "_id",
+        as: "payments",
       },
     },
     {
       $project: {
         _id: 0,
-        promotionCode: "$_id",
-        totalDiscount: 1,
+        promotionId: "$_id",
+        code: "$promotion.code",
+        totalUsed: 1,
+        users: {
+          $map: {
+            input: "$users",
+            as: "user",
+            in: {
+              userId: "$$user._id",
+              fullName: "$$user.fullName",
+            },
+          },
+        },
         payments: {
-          $sortArray: {
+          $map: {
             input: "$payments",
-            sortBy: { paymentDate: -1 }, // Sắp xếp theo ngày thanh toán giảm dần
+            as: "payment",
+            in: {
+              paymentId: "$$payment._id",
+              amount: "$$payment.amount",
+              amountDiscount: "$$payment.amountDiscount",
+            },
           },
         },
+        totalDiscount: { $sum: "$payments.amountDiscount" },
       },
+    },
+    {
+      $sort: { totalUsed: -1 },
     },
   ]);
 
-  if (!promotionStats.length) {
-    return res.status(404).json({
-      status: "fail",
-      message: "No payments found for any promotion codes",
-    });
-  }
-
   res.status(200).json({
     status: "success",
-    data: promotionStats,
-  });
-});
-
-exports.getPromotionStatistics = catchAsync(async (req, res, next) => {
-  const promotionCode = req.params.promotionCode; // Lấy mã khuyến mãi từ request params
-
-  const promotionStats = await Payment.aggregate([
-    {
-      $match: {
-        voucher: promotionCode, // Lọc các thanh toán có chứa mã khuyến mãi
-      },
-    },
-    {
-      $group: {
-        _id: "$voucher",
-        totalDiscount: { $sum: "$amountDiscount" }, // Tính tổng số tiền được giảm từ mã khuyến mãi
-        payments: {
-          $push: {
-            paymentId: "$_id",
-            userId: "$userId",
-            orderId: "$orderId",
-            discountAmount: "$amountDiscount",
-          },
-        },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        promotionCode: "$_id",
-        totalDiscount: 1,
-        payments: 1,
-      },
-    },
-  ]);
-
-  if (!promotionStats.length) {
-    return res.status(404).json({
-      status: "fail",
-      message: "No payments found for this promotion code",
-    });
-  }
-
-  res.status(200).json({
-    status: "success",
-    data: promotionStats[0],
+    data: promotions,
   });
 });
 
@@ -574,16 +549,5 @@ exports.getStatistics = catchAsync(async (req, res, next) => {
         data: userData,
       },
     ],
-  });
-});
-
-
-// Tìm tất cả payment có voucher
-exports.getAllPaymentsWithVoucher = catchAsync(async (req, res, next) => {
-  const payments = await Payment.find({ voucher: { $exists: true, $ne: null } });
-
-  res.status(200).json({
-    status: "success",
-    data: payments,
   });
 });

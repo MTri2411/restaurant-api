@@ -525,12 +525,27 @@ exports.deletePromotion = catchAsync(async (req, res, next) => {
     );
   }
 
+  const promotionUsed = await PromotionUsed.findOne({
+    promotionId: promotion._id,
+  });
+  if (promotionUsed) {
+    return next(
+      new AppError(
+        "Khuyến mãi đã được sử dụng bởi người dùng. Không thể xóa",
+        400
+      )
+    );
+  }
+
   const user = await User.findOne({
-    promotionsRedeemed: promotion.promotionCode,
+    "promotionsRedeemed.promotionId": promotion._id,
   });
   if (user) {
     return next(
-      new AppError("Khuyến mãi đã được người dùng đổi. Không thể xóa", 400)
+      new AppError(
+        "Khuyến mãi đã được sử dụng bởi người dùng. Không thể xóa",
+        400
+      )
     );
   }
 
@@ -539,7 +554,6 @@ exports.deletePromotion = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: "Promotion deleted successfully",
-    data: null,
   });
 });
 
@@ -566,7 +580,7 @@ exports.redeemPromotion = catchAsync(async (req, res, next) => {
         400
       )
     );
-  } 
+  }
 
   const redeemedPromotion = user.promotionsRedeemed.find(
     (p) => p.promotionCode === promotion.code

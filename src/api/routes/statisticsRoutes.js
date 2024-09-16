@@ -30,22 +30,12 @@ router
   .get(statisticsController.getBestSellingMenuItem);
 
 router
-  .route("/promotion-statistics")
-  .get(statisticsController.getPromotionStatistics);
-4;
-
-router
-  .route("/promotion-usage-statistics")
-  .get(statisticsController.getPromotionUsageStatistics);
-
-router
   .route("/most-valuable-customer")
   .get(statisticsController.getValuableCustomer);
 
 router.route("/daily-statistics").get(statisticsController.getStatistics);
-
 router
-  .route("/payments-with-voucher")
-  .get(statisticsController.getAllPaymentsWithVoucher);
+  .route("/promotion-statistics")
+  .get(statisticsController.getPromotionStatistics);
 
 module.exports = router;
