@@ -6,6 +6,9 @@ const router = express.Router();
 router.use(authController.protect);
 
 router
+  .route("/customer-statistics")
+  .get(statisticsController.getCustomerStatistics);
+router
   .route("/revenue-statistics")
   .get(statisticsController.getRevenueStatistics);
 

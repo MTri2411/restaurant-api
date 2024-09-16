@@ -4,7 +4,7 @@ const authController = require("../controllers/authController");
 
 const router = express.Router();
 
-router.route("/").get(authController.restrictTo("admin"), reviewController.getAllReviews);
+router.route("/").get(authController.protect, authController.restrictTo("admin"), reviewController.getAllReviews);
 router.use(authController.protect, authController.restrictTo("client"));
 router.route("/").post(reviewController.filterProfanity, reviewController.createReview);
 router.route("/my-reviews").get(reviewController.getMyReviews);

@@ -548,3 +548,124 @@ exports.getStatistics = catchAsync(async (req, res, next) => {
     ],
   });
 });
+
+// Thống kê tiêu dùng của khách hàng
+exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+
+  const userPaymentsByDay = await Payment.aggregate([
+    {
+      $match: { userId: userId },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+          day: { $dayOfMonth: "$createdAt" },
+        },
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        date: {
+          $dateFromParts: {
+            year: "$_id.year",
+            month: "$_id.month",
+            day: "$_id.day",
+          },
+        },
+        totalAmount: 1,
+      },
+    },
+    {
+      $sort: { date: 1 },
+    },
+  ]);
+
+  const userPaymentsByWeek = await Payment.aggregate([
+    {
+      $match: { userId: userId },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          week: { $week: "$createdAt" },
+        },
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        year: "$_id.year",
+        week: "$_id.week",
+        totalAmount: 1,
+      },
+    },
+    {
+      $sort: { year: 1, week: 1 },
+    },
+  ]);
+
+  const userPaymentsByMonth = await Payment.aggregate([
+    {
+      $match: { userId: userId },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        year: "$_id.year",
+        month: "$_id.month",
+        totalAmount: 1,
+      },
+    },
+    {
+      $sort: { year: 1, month: 1 },
+    },
+  ]);
+
+  const userPaymentsByYear = await Payment.aggregate([
+    {
+      $match: { userId: userId },
+    },
+    {
+      $group: {
+        _id: { year: { $year: "$createdAt" } },
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        year: "$_id.year",
+        totalAmount: 1,
+      },
+    },
+    {
+      $sort: { year: 1 },
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      byDay: userPaymentsByDay,
+      byWeek: userPaymentsByWeek,
+      byMonth: userPaymentsByMonth,
+      byYear: userPaymentsByYear,
+    },
+  });
+});
