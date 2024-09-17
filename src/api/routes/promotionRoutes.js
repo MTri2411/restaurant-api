@@ -12,6 +12,14 @@ router
   .route("/get-promotion-for-client")
   .get(authController.protect, promotionsController.getPromotionForClient);
 
+router
+  .route("/redeem-promotion")
+  .post(authController.protect, promotionsController.redeemPromotion);
+
+router
+  .route("/get-my-promotions-redeemed")
+  .get(authController.protect, promotionsController.getMyPromotionsRedeemed);
+
 router.use(authController.protect, authController.restrictTo("admin"));
 
 router.route("/").post(promotionsController.createPromotion);

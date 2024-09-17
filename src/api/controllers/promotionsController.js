@@ -55,11 +55,6 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
       return next();
     }
 
-    if (user.reputationPoints < promotion.requiredPoints) {
-      req.promotionError = `Bạn cần ${promotion.requiredPoints} điểm để sử dụng mã này`;
-      return next();
-    }
-
     const redeemedPromotion = user.promotionsRedeemed?.find(
       (p) => p.promotionCode === promotionCode
     );
@@ -171,17 +166,27 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
 });
 
 function calculateDiscount(totalAmount, promotion) {
+  let finalTotal;
+
   switch (promotion.discountType) {
     case "fixed":
-      return Math.max(totalAmount - promotion.discount, 0);
+      finalTotal = Math.max(totalAmount - promotion.discount, 0);
+      break;
     case "percentage":
-      return totalAmount * (1 - promotion.discount / 100);
+      finalTotal = totalAmount * (1 - promotion.discount / 100);
+      break;
     case "maxPercentage":
       const discountAmount = totalAmount * (promotion.discount / 100);
-      return totalAmount - Math.min(discountAmount, promotion.maxDiscount);
+      finalTotal =
+        totalAmount - Math.min(discountAmount, promotion.maxDiscount);
+      break;
     default:
-      return totalAmount;
+      finalTotal = totalAmount;
   }
+
+  finalTotal = Math.max(Math.round(finalTotal), 0);
+
+  return finalTotal;
 }
 
 exports.getPromotions = catchAsync(async (req, res, next) => {
@@ -606,6 +611,36 @@ exports.redeemPromotion = catchAsync(async (req, res, next) => {
     message: "Đổi mã khuyến mãi thành công",
     data: {
       user,
+    },
+  });
+});
+
+exports.getMyPromotionsRedeemed = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const promotionsRedeemed = user.promotionsRedeemed;
+
+  const promotionCodes = promotionsRedeemed.map((p) => p.promotionCode);
+
+  const promotions = await Promotion.find({ code: { $in: promotionCodes } });
+
+  const promotionsMap = promotions.reduce((acc, promotion) => {
+    acc[promotion.code] = promotion.description;
+    return acc;
+  }, {});
+
+  const filteredPromotionsRedeemed = promotionsRedeemed.map((p) => ({
+    promotionId: p.promotionId,
+    promotionCode: p.promotionCode,
+    usageCount: p.usageCount,
+    redeemedAt: p.redeemedAt,
+    description: promotionsMap[p.promotionCode] || "No description found",
+  }));
+
+  // Trả về kết quả
+  res.status(200).json({
+    status: "success",
+    data: {
+      promotionsRedeemed: filteredPromotionsRedeemed,
     },
   });
 });
