@@ -3,6 +3,9 @@ const promotionsUsedController = require("../controllers/promotionsUsedControlle
 const authController = require("../controllers/authController");
 
 const router = express.Router();
-router.route("/").get(promotionsUsedController.migratePromotionsUsed);
-router.route("/create").post(promotionsUsedController.createPromotionsUsed);
+
+router.use(authController.protect);
+
+router.route("/").get(promotionsUsedController.getPromotionsUsed);
+
 module.exports = router;

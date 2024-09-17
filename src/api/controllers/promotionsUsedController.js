@@ -1,93 +1,67 @@
 const mongoose = require("mongoose");
-const User = require("../models/UserModel");
+const Payment = require("../models/PaymentModel");
 const Promotion = require("../models/PromotionsModel");
 const PromotionsUsed = require("../models/PromotionsUsedModel");
-const Order = require("../models/OrderModel");
-const Payment = require("../models/PaymentModel");
 const catchAsync = require("../utils/catchAsync");
 
-exports.migratePromotionsUsed = catchAsync(async (req, res, next) => {
-  console.log("Bắt đầu chuyển dữ liệu...");
-  try {
-    await mongoose.connect(
-      `mongodb+srv://trilmps27011:240917aA@cluster0.8z7hvl9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`,
-      {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      }
-    );
+exports.getPromotionsUsed = catchAsync(async (req, res, next) => {
+  const { userId } = req.params; // userId của người dùng
 
-    // Lấy tất cả các Payment có voucher (mã khuyến mãi)
-    const payments = await Payment.find({ voucher: { $exists: true } });
-    console.log(`Tìm thấy ${payments.length} thanh toán có mã khuyến mãi`);
+  // Chuyển đổi userId thành ObjectId
+  const userObjectId = new mongoose.Types.ObjectId(userId); // Sử dụng từ khóa new
 
-    // Duyệt qua từng Payment để lấy thông tin
-    for (const payment of payments) {
-      const { userId, orderId, voucher: promotionCode } = payment;
-      console.log("Đang xử lý thanh toán có orderId: ", orderId);
+  // Truy vấn các mã khuyến mãi đã sử dụng của userId
+  const promotionsUsed = await PromotionsUsed.aggregate([
+    {
+      $match: { userId: userObjectId }, // Tìm theo userId
+    },
+    {
+      $lookup: {
+        from: "payments", // Bảng chứa thanh toán
+        localField: "paymentId", // paymentId trong PromotionsUsed
+        foreignField: "_id", // _id trong bảng payments
+        as: "paymentDetails",
+      },
+    },
+    {
+      $unwind: "$paymentDetails", // Giải nén thông tin thanh toán
+    },
+    {
+      $lookup: {
+        from: "promotions", // Bảng chứa mã khuyến mãi
+        localField: "promotionId", // promotionId trong PromotionsUsed
+        foreignField: "_id", // _id trong bảng promotions
+        as: "promotionDetails",
+      },
+    },
+    {
+      $unwind: "$promotionDetails", // Giải nén thông tin mã khuyến mãi
+    },
+    {
+      $group: {
+        _id: {
+          voucherCode: "$promotionDetails.code", // Mã khuyến mãi
+          paymentId: "$paymentDetails._id", // ID thanh toán
+        },
+        usageCount: { $sum: "$usageCount" }, // Đếm số lần sử dụng
+        totalDiscount: { $sum: "$paymentDetails.amountDiscount" }, // Tính tổng tiền giảm
+        title: { $first: "$promotionDetails.description" }, // Lấy tiêu đề hoặc mô tả của mã khuyến mãi
+      },
+    },
+    {
+      $project: {
+        _id: 0, // Ẩn trường _id
+        voucherCode: "$_id.voucherCode", // Hiển thị mã khuyến mãi
+        paymentId: "$_id.paymentId", // Hiển thị ID thanh toán
+        usageCount: 1, // Số lần sử dụng
+        totalDiscount: 1, // Tổng tiền giảm
+        title: 1, // Tiêu đề của mã khuyến mãi
+      },
+    },
+  ]);
 
-      // Tìm promotion theo promotionCode
-      const promotion = await Promotion.findOne({ promotionCode });
-      if (!promotion) {
-        console.log(
-          `Không tìm thấy promotion với mã khuyến mãi: ${promotionCode}`
-        );
-        continue;
-      }
-
-      // Kiểm tra user có tồn tại không
-      const user = await User.findById(userId);
-      if (!user) {
-        console.log(`Không tìm thấy người dùng với ID: ${userId}`);
-        continue;
-      }
-
-      // Tạo dữ liệu promotionsUsed mới
-      const newPromotionsUsed = {
-        userId,
-        promotionId: promotion._id,
-        orderId,
-        usageCount: 1, // Giả định là mỗi thanh toán chỉ sử dụng mã khuyến mãi một lần
-        version: promotion.version || 1, // Sử dụng version của promotion, nếu có
-      };
-
-      // Lưu dữ liệu promotionsUsed mới vào DB
-      await PromotionsUsed.create(newPromotionsUsed);
-      console.log(
-        `Đã chuyển dữ liệu mã khuyến mãi của người dùng có ID: ${userId} sang bảng mới`
-      );
-    }
-
-    console.log("Chuyển dữ liệu hoàn tất!");
-    mongoose.connection.close();
-
-    res.status(200).json({
-      status: "success",
-      message: "Chuyển dữ liệu hoàn tất!",
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      status: "error",
-      message: "Đã xảy ra lỗi trong quá trình chuyển dữ liệu.",
-    });
-  }
-});
-
-exports.createPromotionsUsed = catchAsync(async (req, res, next) => {
-  const { userId, promotionId, orderId, usageCount, version } = req.body;
-
-  const newPromotionsUsed = {
-    userId,
-    promotionId,
-    orderId,
-    usageCount,
-    version,
-  };
-
-  const promotionsUsed = await PromotionsUsed.create(newPromotionsUsed);
-
-  res.status(201).json({
+  // Trả về kết quả
+  res.status(200).json({
     status: "success",
     data: {
       promotionsUsed,

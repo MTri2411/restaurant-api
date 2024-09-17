@@ -4,6 +4,7 @@ const Payment = require("../models/PaymentModel");
 const Order = require("../models/OrderModel");
 const Review = require("../models/ReviewModel");
 const PromotionsUsed = require("../models/PromotionsUsedModel");
+const mongoose = require("mongoose");
 
 const getStatistics = async (
   Model,
@@ -555,7 +556,18 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
 
   const userPaymentsByDay = await Payment.aggregate([
     {
-      $match: { userId: userId },
+      $lookup: {
+        from: "orders",
+        localField: "orderId",
+        foreignField: "_id",
+        as: "orders",
+      },
+    },
+    {
+      $unwind: "$orders",
+    },
+    {
+      $match: { "orders.userId": userId },
     },
     {
       $group: {
@@ -564,7 +576,7 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
           month: { $month: "$createdAt" },
           day: { $dayOfMonth: "$createdAt" },
         },
-        totalAmount: { $sum: "$amount" },
+        totalAmount: { $sum: "$orders.amount" },
       },
     },
     {
@@ -587,7 +599,18 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
 
   const userPaymentsByWeek = await Payment.aggregate([
     {
-      $match: { userId: userId },
+      $lookup: {
+        from: "orders",
+        localField: "orderId",
+        foreignField: "_id",
+        as: "orders",
+      },
+    },
+    {
+      $unwind: "$orders",
+    },
+    {
+      $match: { "orders.userId": userId },
     },
     {
       $group: {
@@ -595,7 +618,7 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
           year: { $year: "$createdAt" },
           week: { $week: "$createdAt" },
         },
-        totalAmount: { $sum: "$amount" },
+        totalAmount: { $sum: "$orders.amount" },
       },
     },
     {
@@ -613,7 +636,18 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
 
   const userPaymentsByMonth = await Payment.aggregate([
     {
-      $match: { userId: userId },
+      $lookup: {
+        from: "orders",
+        localField: "orderId",
+        foreignField: "_id",
+        as: "orders",
+      },
+    },
+    {
+      $unwind: "$orders",
+    },
+    {
+      $match: { "orders.userId": userId },
     },
     {
       $group: {
@@ -621,7 +655,7 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
           year: { $year: "$createdAt" },
           month: { $month: "$createdAt" },
         },
-        totalAmount: { $sum: "$amount" },
+        totalAmount: { $sum: "$orders.amount" },
       },
     },
     {
@@ -639,12 +673,23 @@ exports.getCustomerStatistics = catchAsync(async (req, res, next) => {
 
   const userPaymentsByYear = await Payment.aggregate([
     {
-      $match: { userId: userId },
+      $lookup: {
+        from: "orders",
+        localField: "orderId",
+        foreignField: "_id",
+        as: "orders",
+      },
+    },
+    {
+      $unwind: "$orders",
+    },
+    {
+      $match: { "orders.userId": userId },
     },
     {
       $group: {
         _id: { year: { $year: "$createdAt" } },
-        totalAmount: { $sum: "$amount" },
+        totalAmount: { $sum: "$orders.amount" },
       },
     },
     {
