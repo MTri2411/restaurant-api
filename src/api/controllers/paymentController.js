@@ -709,14 +709,12 @@ exports.getPaymentsHistory = catchAsync(async (req, res, next) => {
   const transformedData = payments.map((eachPayment) => {
     const items = eachPayment.orderId.flatMap((order) =>
       order.items.map((item) => ({
-        menuItemId: item.menuItemId._id,
-        name: item.menuItemId.name,
-        engName: item.menuItemId.engName,
-        price: item.menuItemId.price,
-        image_url: item.menuItemId.image_url,
-        rating: item.menuItemId.rating,
+        menuItemId: item.menuItemId,
+        name: item.name,
+        price: item.price,
+        image_url: item.image_url,
         quantity: item.quantity,
-        amount: item.menuItemId.price * item.quantity,
+        amount: item.price * item.quantity,
         options: item.options,
         userOrder: {
           fullName: order.userId.fullName,

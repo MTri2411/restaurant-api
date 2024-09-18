@@ -539,6 +539,10 @@ exports.getOrdersForStaff = catchAsync(async (req, res, next) => {
         (a, b) => b.createdAt - a.createdAt
       );
     }
+
+    if (mergedOrders[order.tableNumber].items.length === 0) {
+      delete mergedOrders[order.tableNumber];
+    }
   });
 
   const listLoading = Object.values(mergedOrders);
