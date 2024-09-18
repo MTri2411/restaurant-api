@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            background-color: #28a745;
+            padding: 15px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+            color: white;
+            font-size: 24px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .code {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 24px;
+            color: white;
+            background-color: #28a745;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        p {
+            margin: 10px 0;
+        }
+
+        .btn {
+          display: inline-block;
+          background-color: #007bff;
+          color: white;
+          padding: 10px 20px;
+          text-align: center;
+          text-decoration: none;
+          font-weight: bold;
+          border-radius: 5px;
+          transition: background-color 0.3s ease;
+        }
+        
+        .btn:hover {
+          background-color: #0056b3;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        Đặt lại mật khẩu cho khách hàng
+      </div>
+      <div class="content">
+        <p>Thân chào quý khách,</p>
+        <p>Quý khách đã yêu cầu đặt lại mật khẩu. Yêu cầu này sẽ hết hạn trong
+          10 phút. Vui lòng sử dụng mã sau để đặt lại mật khẩu:</p>
+        <div style="text-align: center;">
+          <div class="code">{{passwordResetCode}}</div>
+        </div>
+        <p>Nếu quý khách không yêu cầu điều này, vui lòng bỏ qua email này.</p>
+        <p>Trân trọng,<br />Đội ngũ PRO2052 Restaurant</p>
+      </div>
+    </div>
+  </body>
+</html>

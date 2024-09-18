@@ -4,6 +4,7 @@ const User = require("../models/UserModel");
 const {
   sendVerificationEmail,
   sendResetPasswordMail,
+  sendResetPasswordMailForClient,
 } = require("../services/sendMailServices");
 const { signToken } = require("../services/jwtServices");
 const crypto = require("crypto");
@@ -238,7 +239,7 @@ exports.forgotPasswordForClient = catchAsync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    sendResetPasswordMail(user.email, passwordResetCode);
+    sendResetPasswordMailForClient(user.email, passwordResetCode);
     res.status(200).json({
       status: "success",
       message: "Password reset code sent successfully!",

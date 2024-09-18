@@ -76,3 +76,26 @@ exports.sendResetPasswordMail = catchAsync(async (to, resetURL) => {
     throw new AppError("Failed to send email to reset password", 500);
   }
 });
+
+exports.sendResetPasswordMailForClient = catchAsync(
+  async (to, passwordResetCode) => {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_USERNAME,
+      to,
+      subject: "PRO2052: Reset Password",
+      template: "emailTemplateForClient",
+      context: {
+        passwordResetCode,
+      },
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (error) {
+      console.log(error);
+      throw new AppError("Failed to send email to reset password", 500);
+    }
+  }
+);

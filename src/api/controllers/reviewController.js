@@ -138,37 +138,28 @@ exports.createReview = catchAsync(async (req, res, next) => {
 
   let foundOrder = null;
 
-  // Duyệt qua từng orderId để tìm order chứa menuItemId
   for (let id of orderId) {
     const order = await Order.findById(id);
     if (
       order &&
       order.items.some(
         (item) => item.menuItemId.toString() === menuItemId.toString()
-      )
+      ) &&
+      order.userId.toString() === userId.toString()
     ) {
       foundOrder = order;
       break;
     }
   }
 
-  // Nếu không tìm thấy đơn hàng nào chứa menuItemId
   if (!foundOrder) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Không tìm thấy đơn hàng chứa món ăn này.",
-    });
-  }
-
-  // Kiểm tra xem người dùng có phải là người đã đặt hàng không
-  if (foundOrder.userId.toString() !== userId.toString()) {
     return res.status(403).json({
       status: "fail",
-      message: "Chỉ người đặt hàng mới có thể đánh giá món ăn.",
+      message:
+        "Chỉ người đã đặt món ăn trong đơn hàng của họ mới có thể đánh giá món ăn.",
     });
   }
 
-  // Kiểm tra xem đánh giá đã tồn tại cho đơn hàng này chưa
   const existingReview = await Review.findOne({
     userId,
     menuItemId,
@@ -182,7 +173,6 @@ exports.createReview = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Tạo đánh giá mới
   const newReview = await Review.create({
     menuItemId,
     userId,
@@ -191,10 +181,8 @@ exports.createReview = catchAsync(async (req, res, next) => {
     comment,
   });
 
-  // Cập nhật điểm đánh giá cho món ăn
   await updateMenuItemRating(menuItemId);
 
-  // Tăng điểm uy tín cho người dùng
   await User.findByIdAndUpdate(userId, { $inc: { reputationPoints: 10 } });
 
   return res.status(201).json({
