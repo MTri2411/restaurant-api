@@ -59,7 +59,7 @@ const validatePayment = async (req, res, next) => {
   if (loadingItems.length > 0) {
     return next(
       new AppError(
-        `Payment can not be made due to incomplete items: ${loadingItems.join(
+        `Thanh toán không thể thực hiện vì một số món ăn chưa được chế biến: ${loadingItems.join(
           ", "
         )}`,
         400

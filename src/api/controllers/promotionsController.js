@@ -110,7 +110,7 @@ exports.checkPromotionCode = catchAsync(async (req, res, next) => {
 
     const user = await User.findById(checkUserId);
     if (!user) {
-      req.promotionError = "Người dùng không tồn tại";
+      req.promotionError = "Người dùng không tồn tại, vui lòng kiểm tra lại";
       return next();
     }
 

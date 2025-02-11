@@ -13,7 +13,7 @@ exports.deleteOldImage = catchAsync(async (req, res, next) => {
 
   const event = await Event.findById(eventId);
   if (!event) {
-    return next(new AppError("Event not found", 404));
+    return next(new AppError("Không tìm thấy sự kiện", 404));
   }
 
   if (deleteImages && Array.isArray(deleteImages)) {

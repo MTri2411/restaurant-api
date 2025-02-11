@@ -535,7 +535,7 @@ exports.getStatistics = catchAsync(async (req, res, next) => {
     status: "success",
     data: [
       {
-        name: "Bán Hàng",
+        name: "Đơn Hàng",
         data: orderData,
       },
       {

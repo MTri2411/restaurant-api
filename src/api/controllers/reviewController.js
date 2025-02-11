@@ -28,7 +28,7 @@ exports.filterProfanity = (req, res, next) => {
   const { comment } = req.body;
 
   if (containsProfanity(comment)) {
-    return next(new AppError("Bình luận chứa từ ngữ không phù hợp.", 400));
+    return next(new AppError("Bình luận chứa ngôn từ không phù hợp.", 400));
   }
 
   req.body.comment = cleanComment(comment);

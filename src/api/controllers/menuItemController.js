@@ -147,7 +147,7 @@ exports.deleteMenuItem = catchAsync(async (req, res, next) => {
   const deleteMenuItem = await MenuItem.findByIdAndDelete(menuItemId);
 
   if (!deleteMenuItem) {
-    return next(new AppError("No category found with this ID", 404));
+    return next(new AppError("Không tìm thấy menu item với ID này", 404));
   }
 
   res.status(200).json({

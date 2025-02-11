@@ -14,7 +14,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   if (!token) {
     return next(
-      new AppError("You are not logged in! Please log in to get access.", 401)
+      new AppError("Bạn chưa đăng nhập! Vui lòng đăng nhập để tiếp tục.", 401)
     );
   }
 
@@ -24,7 +24,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   if (!user) {
     return next(
       new AppError(
-        "The user belonging to this token does no longer exist.",
+        "Người dùng không tồn tại! Vui lòng đăng nhập lại.",
         401
       )
     );
@@ -38,7 +38,7 @@ exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return next(
-        new AppError("You do not have permission to perform this action", 403)
+        new AppError("Bạn không có quyền truy cập vào tài nguyên này.", 403)
       );
     }
     next();

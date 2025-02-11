@@ -17,7 +17,7 @@ exports.getCategories = catchAsync(async (req, res, next) => {
 
   // Check if no category found
   if (categories.length === 0)
-    return next(new AppError("No category found", 404));
+    return next(new AppError("Không tìm thấy danh mục nào", 404));
 
   res.status(200).json({
     success: "success",

@@ -7,11 +7,6 @@ const QRCode = require("qrcode");
 const path = require("path");
 
 exports.createQRcode = catchAsync(async (req, res, next) => {
-  // const { tableId } = req.params;
-
-  // // Find table in database
-  // const table = await Table.findById(tableId);
-  // if (!table) return next(new AppError("Table not found", 404));
 
   const dataInQRCode = JSON.stringify({
     tableId: "66ab3a805c6a6d8a1d7f8a8d",

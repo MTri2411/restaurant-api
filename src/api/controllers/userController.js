@@ -4,23 +4,12 @@ const User = require("../models/UserModel");
 const {
   sendVerificationEmail,
   sendResetPasswordMail,
-  sendResetPasswordMailForClient,
 } = require("../services/sendMailServices");
 const { signToken } = require("../services/jwtServices");
 const crypto = require("crypto");
 
 exports.getAllUsers = catchAsync(async (req, res, next) => {
   const users = await User.find().select("-password");
-  res.status(200).json({
-    status: "success",
-    data: {
-      users,
-    },
-  });
-});
-
-exports.getUnverifiedUsers = catchAsync(async (req, res, next) => {
-  const users = await User.find({ isVerified: false }).select("-password");
   res.status(200).json({
     status: "success",
     data: {
@@ -229,51 +218,6 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   }
 });
 
-exports.forgotPasswordForClient = catchAsync(async (req, res, next) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) {
-    return next(new AppError("User not found!", 404));
-  }
-  const passwordResetCode = user.createPasswordResetCode();
-  await user.save({ validateBeforeSave: false });
-
-  try {
-    sendResetPasswordMailForClient(user.email, passwordResetCode);
-    res.status(200).json({
-      status: "success",
-      message: "Password reset code sent successfully!",
-    });
-  } catch (error) {
-    user.passwordResetCode = undefined;
-    user.passwordResetCodeExpires = undefined;
-    await user.save({ validateBeforeSave: false });
-    return next(new AppError("Failed to send password reset code", 500));
-  }
-});
-
-exports.resetPasswordForClient = catchAsync(async (req, res, next) => {
-  const { email, password, passwordResetCode } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user) {
-    return next(new AppError("User not found!", 404));
-  }
-
-  if (user.passwordResetCode !== passwordResetCode) {
-    return next(new AppError("Invalid password reset code!", 400));
-  }
-
-  user.password = password;
-  user.passwordResetCode = undefined;
-  user.passwordResetCodeExpires = undefined;
-  await user.save();
-
-  res.status(200).json({
-    status: "success",
-    message: "Password reset successful!",
-  });
-});
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
   const token = crypto

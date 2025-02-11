@@ -21,7 +21,7 @@ exports.checkUserInTable = catchAsync(async (req, res, next) => {
   );
 
   if (!tableInUse) {
-    return next(new AppError("User not found at the table", 404));
+    return next(new AppError("Người dùng không ở bàn này", 403));
   }
 
   next();
